@@ -1,0 +1,875 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<style>*,*::before,*::after{box-sizing:border-box}body{margin:0}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>Farand HUD</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Share+Tech+Mono&display=swap">
+<style>
+/* Layout: one full-screen holographic stage. Hologram centered, status panels pinned left/right,
+   control dock along the bottom like a workbench HUD. Single dark look by design. */
+:root{
+  --void:#02070b;          /* room darkness */
+  --deep:#061820;          /* panel glass base */
+  --holo:#62e3ff;          /* hologram cyan */
+  --holo-soft:rgba(98,227,255,.55);
+  --line:rgba(98,227,255,.26);
+  --glass:rgba(6,28,40,.62);
+  --ice:#e8fcff;           /* hot highlight */
+  --amber:#ffb84d;         /* warnings, scan heat, home pin */
+  --font-d:"Chakra Petch","Rajdhani",ui-sans-serif,system-ui,sans-serif;
+  --font-m:"Share Tech Mono",ui-monospace,"SF Mono",Menlo,monospace;
+  color-scheme:dark;
+}
+html,body{height:100%}
+body{background:var(--void);color:var(--holo);overflow:hidden;font-family:var(--font-d);
+  -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;touch-action:none}
+canvas.layer{position:fixed;inset:0;display:block}
+#bg{z-index:0}#holo{z-index:1;cursor:grab}#holo:active{cursor:grabbing}
+#fx{z-index:5;pointer-events:none}
+
+.hud{position:fixed;inset:0;z-index:3;pointer-events:none;
+  padding-block:max(14px,env(safe-area-inset-top,0px)) max(14px,env(safe-area-inset-bottom,0px));
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:grid;grid-template-rows:auto 1fr auto;grid-template-columns:minmax(0,260px) 1fr minmax(0,280px);gap:14px}
+.top{grid-column:1/-1;display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+.brand{display:flex;align-items:center;gap:12px;letter-spacing:.32em;font-weight:600;font-size:18px;color:var(--ice)}
+.brand small{display:block;font-family:var(--font-m);font-size:10px;letter-spacing:.18em;color:var(--holo-soft);font-weight:400;margin-top:2px}
+.mark{flex-shrink:0;width:30px;height:30px;border:1.5px solid var(--holo);border-radius:50%;position:relative;box-shadow:0 0 12px var(--holo-soft)}
+.mark::after{content:"";position:absolute;inset:7px;border-radius:50%;background:var(--holo);box-shadow:0 0 14px var(--holo)}
+.clock{text-align:right;font-family:var(--font-m)}
+#time{display:block;font-size:30px;color:var(--ice);letter-spacing:.06em;font-variant-numeric:tabular-nums;text-shadow:0 0 14px var(--holo-soft)}
+#date{font-size:11px;letter-spacing:.3em;color:var(--holo-soft)}
+
+.panel{align-self:center;background:var(--glass);border:1px solid var(--line);padding:16px 16px 14px;position:relative;
+  clip-path:polygon(0 0,calc(100% - 14px) 0,100% 14px,100% 100%,14px 100%,0 calc(100% - 14px));
+  -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);min-width:0}
+.panel h3{margin:0 0 10px;font-size:11px;letter-spacing:.34em;font-weight:600;color:var(--holo-soft)}
+.panel h3:not(:first-child){margin-top:18px}
+.rows{display:grid;gap:7px;font-family:var(--font-m);font-size:12px}
+.row{display:flex;justify-content:space-between;gap:10px;border-bottom:1px dashed rgba(98,227,255,.14);padding-bottom:5px}
+.row span:first-child{color:var(--holo-soft);letter-spacing:.12em}
+.row b{font-weight:400;color:var(--ice);text-align:right}
+.row b.warn{color:var(--amber)}
+.legend{display:grid;gap:8px;font-size:12px;font-weight:500;letter-spacing:.06em;color:var(--ice)}
+.legend div{display:grid;grid-template-columns:86px 1fr;gap:8px}
+.legend i{font-style:normal;font-family:var(--font-m);font-size:10px;letter-spacing:.14em;color:var(--holo-soft);padding-top:2px}
+#gesture{font-size:20px;font-weight:600;letter-spacing:.2em;color:var(--ice);min-height:26px;text-shadow:0 0 12px var(--holo-soft)}
+
+.right .objname{font-size:22px;font-weight:700;letter-spacing:.18em;color:var(--ice);margin:0;text-wrap:balance}
+.right .idx{font-family:var(--font-m);font-size:11px;letter-spacing:.2em;color:var(--holo-soft);margin:4px 0 14px}
+#analysis .row{opacity:0;transform:translateX(8px)}
+#analysis.show .row{animation:rowin .35s ease forwards}
+@keyframes rowin{to{opacity:1;transform:none}}
+.await{font-family:var(--font-m);font-size:12px;letter-spacing:.14em;color:var(--holo-soft);line-height:1.6}
+
+.dock{grid-column:1/-1;display:flex;flex-wrap:wrap;justify-content:center;gap:10px 12px;pointer-events:none}
+.btn{pointer-events:auto;appearance:none;border:1px solid var(--holo-soft);background:rgba(98,227,255,.1);color:var(--ice);
+  font:600 13px/1 var(--font-d);letter-spacing:.24em;padding:15px 22px;min-width:96px;cursor:pointer;
+  transform:skewX(-16deg);transition:background .15s,box-shadow .15s,transform .15s}
+.btn>span{display:inline-block;transform:skewX(16deg)}
+.btn:hover,.btn.hand-hover{background:rgba(98,227,255,.28);box-shadow:0 0 18px rgba(98,227,255,.45)}
+.btn.on{background:var(--holo);color:var(--void);box-shadow:0 0 22px rgba(98,227,255,.6)}
+.btn.primary{border-color:var(--amber);background:rgba(255,184,77,.14)}
+.btn.primary:hover,.btn.primary.hand-hover{background:rgba(255,184,77,.3);box-shadow:0 0 18px rgba(255,184,77,.45)}
+.btn.pressed{transform:skewX(-16deg) scale(.94);background:var(--ice);color:var(--void)}
+.btn:focus-visible{outline:2px solid var(--ice);outline-offset:3px}
+
+.cam{position:fixed;z-index:4;left:max(16px,env(safe-area-inset-left,0px));bottom:calc(max(14px,env(safe-area-inset-bottom,0px)) + 64px);
+  width:200px;aspect-ratio:4/3;max-width:40vw;border:1px solid var(--line);background:#000;overflow:hidden;pointer-events:none}
+.cam video,.cam canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+.cam video{opacity:.45;filter:grayscale(1) contrast(1.2)}
+.cam span{position:absolute;left:8px;top:6px;font:10px var(--font-m);letter-spacing:.2em;color:var(--holo)}
+
+.caption{position:fixed;z-index:4;left:50%;bottom:calc(max(14px,env(safe-area-inset-bottom,0px)) + 76px);transform:translateX(-50%);
+  width:min(640px,calc(100% - 32px));text-align:center;font-size:17px;font-weight:500;letter-spacing:.04em;color:var(--ice);
+  text-shadow:0 0 10px rgba(2,7,11,.9),0 0 18px var(--holo-soft);pointer-events:none;transition:opacity .6s;text-wrap:balance}
+.caption b{color:var(--holo);font-weight:600;letter-spacing:.2em;font-size:12px;margin-right:8px}
+
+.boot{position:fixed;inset:0;z-index:10;display:grid;place-items:center;background:radial-gradient(circle at 50% 45%,rgba(6,24,32,.55),rgba(2,7,11,.92) 70%);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.boot-inner{text-align:center;display:grid;gap:18px;justify-items:center}
+.boot h1{margin:0;font-size:clamp(44px,9vw,96px);letter-spacing:.42em;font-weight:600;color:var(--ice);padding-left:.42em;text-shadow:0 0 30px var(--holo-soft)}
+.boot p{margin:0;font-family:var(--font-m);font-size:12px;letter-spacing:.24em;color:var(--holo-soft);max-width:44ch;line-height:1.7}
+.boot .btn{font-size:15px;padding:18px 34px}
+
+@media (max-width:860px){
+  .hud{grid-template-columns:1fr}
+  .panel{display:none}
+  .cam{width:140px}
+  .btn{min-width:0;padding:13px 14px;letter-spacing:.16em;font-size:12px}
+  .brand{font-size:15px}
+  #time{font-size:22px}
+}
+@media (prefers-reduced-motion:reduce){#analysis.show .row{animation:none;opacity:1;transform:none}}
+</style>
+
+<canvas id="bg" class="layer"></canvas>
+<canvas id="holo" class="layer" aria-label="Hologram. Drag to rotate, pinch or scroll to scale."></canvas>
+
+<div class="hud">
+  <header class="top">
+    <div class="brand"><span class="mark" aria-hidden="true"></span><div>FARAND<small>PERSONAL SYSTEM · BUILD 0.1</small></div></div>
+    <div class="clock"><span id="time">--:--:--</span><span id="date">---</span></div>
+  </header>
+
+  <aside class="panel left">
+    <h3>SYSTEM</h3>
+    <div class="rows">
+      <div class="row"><span>CORE</span><b>ONLINE</b></div>
+      <div class="row"><span>VOICE</span><b id="stVoice">ON</b></div>
+      <div class="row"><span>HANDS</span><b id="stHands">OFF</b></div>
+      <div class="row"><span>LISTEN</span><b id="stListen">OFF</b></div>
+      <div class="row"><span>FRAME</span><b id="stFps">-- FPS</b></div>
+      <div class="row"><span>AZ / EL</span><b id="stOrient">0° / 0°</b></div>
+      <div class="row"><span>SCALE</span><b id="stScale">×1.00</b></div>
+    </div>
+    <h3>GESTURE</h3>
+    <div id="gesture">STANDBY</div>
+    <h3>CONTROLS</h3>
+    <div class="legend">
+      <div><i>PINCH+DRAG</i>Rotate the hologram</div>
+      <div><i>TWO PINCHES</i>Pull apart to scale</div>
+      <div><i>OPEN PALM</i>Hold still to scan</div>
+      <div><i>SWIPE</i>Next or previous object</div>
+      <div><i>PINCH BUTTON</i>Press it in the air</div>
+    </div>
+  </aside>
+
+  <div aria-hidden="true"></div>
+
+  <aside class="panel right" aria-live="polite">
+    <h3>OBJECT</h3>
+    <p class="objname" id="objName">FARAND CORE</p>
+    <p class="idx" id="objIdx">01 / 04 · LINES 000</p>
+    <h3>ANALYSIS</h3>
+    <div id="analysis" class="rows"><div class="await">AWAITING SCAN. HOLD AN OPEN PALM OR PRESS SCAN.</div></div>
+  </aside>
+
+  <nav class="dock" aria-label="Farand controls">
+    <button class="btn" id="bPrev" data-act="prev"><span>PREV</span></button>
+    <button class="btn primary" id="bScan" data-act="scan"><span>SCAN</span></button>
+    <button class="btn" id="bNext" data-act="next"><span>NEXT</span></button>
+    <button class="btn" id="bReset" data-act="reset"><span>RESET</span></button>
+    <button class="btn" id="bHands" data-act="hands"><span>HANDS</span></button>
+    <button class="btn on" id="bVoice" data-act="voice"><span>VOICE</span></button>
+    <button class="btn" id="bListen" data-act="listen"><span>LISTEN</span></button>
+  </nav>
+</div>
+
+<div class="cam" id="cam" hidden><video id="video" playsinline muted autoplay></video><canvas id="skel"></canvas><span>OPTICAL INPUT</span></div>
+<div class="caption" id="caption" style="opacity:0"></div>
+<canvas id="fx" class="layer"></canvas>
+
+<div class="boot" id="boot">
+  <div class="boot-inner">
+    <span class="mark" style="width:54px;height:54px" aria-hidden="true"></span>
+    <h1>FARAND</h1>
+    <p>Personal system. Hand control uses the front camera; nothing leaves this device.</p>
+    <button class="btn primary" id="bWake"><span>WAKE FARAND</span></button>
+  </div>
+</div>
+
+<script type="module">
+/* ---------------- config ---------------- */
+const MP_VER = "0.10.14";
+const MP_URL = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VER}/vision_bundle.mjs`;
+const MP_WASM = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VER}/wasm`;
+const HAND_MODEL = "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task";
+const OWNER = "Albert";
+
+const $ = s => document.querySelector(s);
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+const lerp = (a,b,t) => a + (b-a)*t;
+const TAU = Math.PI*2;
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+const css = getComputedStyle(document.documentElement);
+const C = {
+  holo: css.getPropertyValue("--holo").trim() || "#62e3ff",
+  ice: css.getPropertyValue("--ice").trim() || "#e8fcff",
+  amber: css.getPropertyValue("--amber").trim() || "#ffb84d",
+};
+const rgba = (hex, a) => { const n = parseInt(hex.slice(1),16); return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`; };
+
+/* ---------------- canvases ---------------- */
+const bg = $("#bg"), holo = $("#holo"), fx = $("#fx");
+const g = holo.getContext("2d"), fg = fx.getContext("2d");
+let W = 0, H = 0, DPR = 1;
+function resize(){
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = innerWidth; H = innerHeight;
+  for (const c of [bg, holo, fx]) { c.width = Math.round(W*DPR); c.height = Math.round(H*DPR); c.style.width = W+"px"; c.style.height = H+"px"; }
+  drawBg();
+}
+function drawBg(){
+  const b = bg.getContext("2d");
+  b.setTransform(DPR,0,0,DPR,0,0);
+  b.fillStyle = "#02070b"; b.fillRect(0,0,W,H);
+  const r = 26, hw = Math.sqrt(3)*r;
+  b.strokeStyle = rgba(C.holo, .06); b.lineWidth = 1;
+  b.beginPath();
+  for (let row = -1; row*r*1.5 < H + r; row++) {
+    for (let col = -1; col*hw < W + hw; col++) {
+      const cx = col*hw + (row%2 ? hw/2 : 0), cy = row*r*1.5;
+      for (let k = 0; k < 6; k++) {
+        const a = Math.PI/6 + k*Math.PI/3, x = cx + r*Math.cos(a), y = cy + r*Math.sin(a);
+        k ? b.lineTo(x,y) : b.moveTo(x,y);
+      }
+      b.closePath();
+    }
+  }
+  b.stroke();
+  const v = b.createRadialGradient(W/2,H/2,Math.min(W,H)*.15,W/2,H/2,Math.max(W,H)*.75);
+  v.addColorStop(0,"rgba(10,60,80,.28)"); v.addColorStop(.55,"rgba(2,7,11,.2)"); v.addColorStop(1,"rgba(2,7,11,.95)");
+  b.fillStyle = v; b.fillRect(0,0,W,H);
+}
+addEventListener("resize", resize);
+resize();
+
+/* ---------------- hologram models ---------------- */
+function Model(){ return { v:[], e:[] }; }
+function addV(m,p){ m.v.push(p); return m.v.length-1; }
+function poly(m, pts, closed=false, acc=0){
+  const ids = pts.map(p => addV(m,p));
+  for (let i = 0; i < ids.length-1; i++) m.e.push([ids[i], ids[i+1], acc]);
+  if (closed) m.e.push([ids[ids.length-1], ids[0], acc]);
+  return ids;
+}
+const circ = (r, n, z=0, cx=0, cy=0, a0=0) => Array.from({length:n}, (_,i) => { const a = a0 + i/n*TAU; return [cx + r*Math.cos(a), cy + r*Math.sin(a), z]; });
+function prism(m, pts2, z0, z1, acc=0){
+  const a = poly(m, pts2.map(([x,y]) => [x,y,z0]), true, acc);
+  const b = poly(m, pts2.map(([x,y]) => [x,y,z1]), true, acc);
+  a.forEach((id,i) => m.e.push([id, b[i], acc]));
+}
+function cylinder(m, r, z0, z1, n, verts, acc=0){
+  const a = poly(m, circ(r,n,z0), true, acc), b = poly(m, circ(r,n,z1), true, acc);
+  for (let i = 0; i < n; i += Math.round(n/verts)) m.e.push([a[i], b[i], acc]);
+}
+
+function buildCore(){
+  const m = Model();
+  cylinder(m, .3, -.1, .1, 48, 8);
+  poly(m, circ(.18, 6, -.1, 0, 0, Math.PI/6), true, 1);
+  poly(m, circ(.55, 3, 0, 0, 0, Math.PI/2), true);
+  for (let k = 0; k < 10; k++) {
+    const a = k/10*TAU, da = .2, ri = .64, ro = .94;
+    prism(m, [[ri*Math.cos(a-da), ri*Math.sin(a-da)], [ro*Math.cos(a-da*.82), ro*Math.sin(a-da*.82)],
+              [ro*Math.cos(a+da*.82), ro*Math.sin(a+da*.82)], [ri*Math.cos(a+da), ri*Math.sin(a+da)]], -.13, .13);
+  }
+  poly(m, circ(1.06, 80), true);
+  const dash = circ(1.14, 96);
+  for (let i = 0; i < dash.length; i += 4) poly(m, [dash[i], dash[i+1], dash[i+2]]);
+  return { m, name:"FARAND CORE", pose:[.5,-.35],
+    rows:[["CLASS","Assistant kernel"],["PERSONALITY","Calm · a bit playful"],["POWER","Mostly coffee"],["UPTIME","Since you woke me"],["STATUS","All systems nominal"]],
+    quip:`Core scan complete. Everything is nominal, ${OWNER}. I would tell you if it wasn't. Probably.` };
+}
+function buildChip(){
+  const m = Model();
+  cylinder(m, 1, -.08, .08, 72, 24);
+  poly(m, circ(.66, 60, -.081), true);
+  poly(m, circ(.66, 60, .081), true);
+  for (let k = 0; k < 8; k++) {
+    const a = k/8*TAU, da = .11, r = 1.01;
+    poly(m, [[r*Math.cos(a-da), r*Math.sin(a-da), -.05], [r*Math.cos(a+da), r*Math.sin(a+da), -.05],
+             [r*Math.cos(a+da), r*Math.sin(a+da), .05], [r*Math.cos(a-da), r*Math.sin(a-da), .05]], true);
+  }
+  const z = -.082, s = .16;
+  poly(m, [[-s,-s,z],[s,-s,z],[s,s,z],[-s,s,z]], true, 2);
+  poly(m, [[-s*.55,-s*.55,z],[s*.55,-s*.55,z],[s*.55,s*.55,z],[-s*.55,s*.55,z]], true, 2);
+  const traces = [[[s,0],[.3,0],[.36,.08],[.5,.08]], [[0,s],[0,.28],[-.1,.38],[-.1,.5]], [[-s,.05],[-.32,.05],[-.4,-.05],[-.52,-.05]], [[.05,-s],[.05,-.3],[.16,-.4],[.16,-.52]], [[s,-.1],[.26,-.1],[.36,-.24]]];
+  for (const t of traces) poly(m, t.map(([x,y]) => [x,y,z]), false, 2);
+  return { m, name:"POKER CHIP", pose:[.3,-.55],
+    rows:[["SIZE","Ø40 × 3.5 mm"],["CONTENTS","1 circuit board (suspicious)"],["HOUSE EDGE","Still the house's"],["CHEAT ODDS","0.3%"],["ADVICE","Do not"]],
+    quip:"Scan complete. It is a poker chip with a computer inside. I am obligated to advise against bringing it to a casino." };
+}
+function buildSantoor(){
+  const m = Model();
+  const yb = -.55, yt = .55, xb = 1.0, xt = .56, t = .08;
+  prism(m, [[-xb,yb],[xb,yb],[xt,yt],[-xt,yt]], -t, t);
+  const edgeX = (y, side) => side*lerp(xb, xt, (y-yb)/(yt-yb));
+  for (let i = 0; i < 18; i++) {
+    const y = -.47 + i*(.94/17), xl = edgeX(y,-1)+.05, xr = edgeX(y,1)-.05, z = -t-.03;
+    poly(m, [[xl,y,z],[xr,y,z]]);
+    const bx = i%2 ? lerp(xl, xr, .64) : lerp(xl, xr, .12);
+    poly(m, [[bx,y-.025,-t],[bx,y,z-.012],[bx,y+.025,-t]], false, 1);
+  }
+  poly(m, circ(.07, 24, -t-.001, -.32, .2), true);
+  poly(m, circ(.07, 24, -t-.001, .32, .2), true);
+  poly(m, [[-.72,yb+.02,-t-.05],[-.72,yb+.02,-t-.25],[-.62,yb+.02,-t-.32]], false, 2);
+  poly(m, [[.62,yb+.02,-t-.05],[.62,yb+.02,-t-.25],[.72,yb+.02,-t-.32]], false, 2);
+  return { m, name:"SANTOOR", pose:[0,-.75],
+    rows:[["FAMILY","Hammered dulcimer"],["STRINGS","72 in 18 courses"],["BRIDGES","9 + 9"],["RANGE","About 3 octaves"],["SUGGESTED","Dastgah-e Shur"]],
+    quip:"Santoor identified. Seventy two strings, and every one of them wants tuning. Shall we start in Shur?" };
+}
+const HOME = { lat:43.88, lon:-79.44 };
+function sph(lat, lon, r=1){ const la = lat*Math.PI/180, lo = lon*Math.PI/180; return [r*Math.cos(la)*Math.sin(lo), r*Math.sin(la), -r*Math.cos(la)*Math.cos(lo)]; }
+function buildEarth(){
+  const m = Model();
+  for (const lat of [-60,-40,-20,0,20,40,60]) poly(m, Array.from({length:56}, (_,i) => sph(lat, i/56*360)), true, lat === 0 ? 1 : 0);
+  for (let lon = 0; lon < 360; lon += 30) poly(m, Array.from({length:25}, (_,i) => sph(-90 + i*7.5, lon)));
+  poly(m, [sph(HOME.lat,HOME.lon,1), sph(HOME.lat,HOME.lon,1.32)], false, 2);
+  for (const rad of [3, 6]) poly(m, Array.from({length:24}, (_,i) => { const a = i/24*TAU; return sph(HOME.lat + rad*Math.sin(a), HOME.lon + rad*Math.cos(a)/Math.cos(HOME.lat*Math.PI/180)); }), true, 2);
+  return { m, name:"HOME BASE", pose:[HOME.lon*Math.PI/180, -.45],
+    rows:[["LOCATION","Richmond Hill, ON"],["COORDS","43.88° N · 79.44° W"],["LOCAL TIME","__TIME__"],["ELEVATION","≈ 230 m"],["WEATHER","No window yet"]],
+    quip:"Home base located. Richmond Hill, Ontario. I can't tell you the weather yet. Nobody has given me a window." };
+}
+const OBJECTS = [buildCore(), buildChip(), buildSantoor(), buildEarth()];
+
+/* ---------------- view state ---------------- */
+const view = { idx:0, yaw:OBJECTS[0].pose[0], pitch:OBJECTS[0].pose[1], vyaw:0, vpitch:0, scale:1, targetScale:1, build:1, lastInteract:-1e9 };
+const scanS = { active:false, t:0, done:false };
+const interact = () => { view.lastInteract = performance.now(); };
+
+function selectObject(i, announce=true){
+  view.idx = (i + OBJECTS.length) % OBJECTS.length;
+  const o = OBJECTS[view.idx];
+  view.yaw = o.pose[0]; view.pitch = o.pose[1]; view.vyaw = view.vpitch = 0; view.build = 0;
+  scanS.active = false; scanS.done = false;
+  $("#objName").textContent = o.name;
+  $("#objIdx").textContent = `${String(view.idx+1).padStart(2,"0")} / ${String(OBJECTS.length).padStart(2,"0")} · LINES ${String(o.m.e.length).padStart(3,"0")}`;
+  $("#analysis").className = "rows";
+  $("#analysis").innerHTML = '<div class="await">AWAITING SCAN. HOLD AN OPEN PALM OR PRESS SCAN.</div>';
+  beep(520, .05, "triangle", .05); beep(780, .07, "triangle", .04, .06);
+  if (announce) caption(o.name.toLowerCase().replace(/^\w/, c => c.toUpperCase()) + ".", false);
+}
+function startScan(){
+  if (scanS.active) return;
+  scanS.active = true; scanS.t = 0; scanS.done = false;
+  $("#analysis").className = "rows";
+  $("#analysis").innerHTML = '<div class="await">SCANNING…</div>';
+  sweep(300, 1200, 2.3);
+  interact();
+}
+function finishScan(){
+  scanS.active = false; scanS.done = true;
+  const o = OBJECTS[view.idx], el = $("#analysis");
+  el.innerHTML = "";
+  o.rows.forEach(([k,v], i) => {
+    const row = document.createElement("div"); row.className = "row"; row.style.animationDelay = (i*.12)+"s";
+    const a = document.createElement("span"); a.textContent = k;
+    const b = document.createElement("b"); b.textContent = v === "__TIME__" ? new Date().toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"}) : v;
+    if (k === "ADVICE" || k === "CHEAT ODDS") b.className = "warn";
+    row.append(a,b); el.append(row);
+  });
+  void el.offsetWidth; el.className = "rows show";
+  beep(880,.08,"sine",.05); beep(1320,.12,"sine",.04,.09);
+  say(o.quip);
+}
+function resetView(){
+  const o = OBJECTS[view.idx];
+  view.yaw = o.pose[0]; view.pitch = o.pose[1]; view.vyaw = view.vpitch = 0; view.targetScale = 1;
+  beep(440,.06,"triangle",.05); interact();
+}
+
+/* ---------------- sound + voice ---------------- */
+let ac = null;
+function beep(f=880, d=.06, type="sine", vol=.05, delay=0){
+  if (!ac) return;
+  const t = ac.currentTime + delay, o = ac.createOscillator(), gn = ac.createGain();
+  o.type = type; o.frequency.setValueAtTime(f, t);
+  gn.gain.setValueAtTime(vol, t); gn.gain.exponentialRampToValueAtTime(.0001, t + d);
+  o.connect(gn).connect(ac.destination); o.start(t); o.stop(t + d + .02);
+}
+function sweep(f0, f1, d){
+  if (!ac) return;
+  const t = ac.currentTime, o = ac.createOscillator(), gn = ac.createGain();
+  o.type = "sawtooth"; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + d);
+  gn.gain.setValueAtTime(.0001, t); gn.gain.exponentialRampToValueAtTime(.018, t + .2); gn.gain.exponentialRampToValueAtTime(.0001, t + d);
+  const lp = ac.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 1400;
+  o.connect(lp).connect(gn).connect(ac.destination); o.start(t); o.stop(t + d + .05);
+}
+
+let voiceOn = true, voice = null;
+const hasTTS = "speechSynthesis" in window;
+function pickVoice(){
+  if (!hasTTS) return null;
+  const vs = speechSynthesis.getVoices();
+  for (const n of ["Daniel","Arthur","Oliver","Aaron","Rishi","Gordon","Google UK English Male","Alex","Fred"]) {
+    const v = vs.find(v => v.name.startsWith(n) && v.lang.startsWith("en")); if (v) return v;
+  }
+  return vs.find(v => v.lang === "en-GB") || vs.find(v => v.lang.startsWith("en")) || null;
+}
+if (hasTTS) speechSynthesis.onvoiceschanged = () => { voice = pickVoice(); };
+let capTimer = 0;
+function caption(text, spoken=true){
+  const el = $("#caption");
+  el.innerHTML = ""; const b = document.createElement("b"); b.textContent = "FARAND";
+  el.append(b, document.createTextNode(text)); el.style.opacity = 1;
+  clearTimeout(capTimer); capTimer = setTimeout(() => el.style.opacity = 0, 2500 + text.length*55);
+}
+function say(text){
+  caption(text);
+  if (!voiceOn || !hasTTS) return;
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    voice = voice || pickVoice(); if (voice) u.voice = voice;
+    u.rate = 1.0; u.pitch = .88;
+    speechSynthesis.speak(u);
+  } catch(e) {}
+}
+function toggleVoice(){
+  voiceOn = !voiceOn;
+  $("#bVoice").classList.toggle("on", voiceOn);
+  $("#stVoice").textContent = voiceOn ? "ON" : "OFF";
+  if (!voiceOn && hasTTS) speechSynthesis.cancel(); else say("Voice on.");
+}
+
+/* ---------------- listening (voice commands) ---------------- */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let rec = null, listening = false;
+if (!SR) $("#bListen").hidden = true;
+function setListen(on, label){
+  listening = on; $("#bListen").classList.toggle("on", on);
+  $("#stListen").textContent = label || (on ? "ON" : "OFF");
+}
+function toggleListen(){
+  if (!SR) return;
+  if (listening) { setListen(false); try { rec && rec.stop(); } catch(e) {} return; }
+  rec = new SR(); rec.lang = "en-US"; rec.continuous = true; rec.interimResults = false;
+  rec.onresult = e => { const r = e.results[e.results.length-1]; if (r && r[0]) command(r[0].transcript.toLowerCase().trim()); };
+  rec.onerror = e => { if (e.error === "not-allowed" || e.error === "service-not-allowed") { setListen(false, "BLOCKED"); say("I can't hear you. Microphone access is blocked here."); } };
+  rec.onend = () => { if (listening) { try { rec.start(); } catch(e) {} } };
+  try { rec.start(); setListen(true); say("Listening. Try: scan, next, or show me the santoor."); } catch(e) { setListen(false, "BLOCKED"); }
+}
+function command(t){
+  $("#gesture").textContent = "VOICE";
+  const has = (...w) => w.some(x => t.includes(x));
+  if (has("santoor","santur","dulcimer")) return selectObject(2);
+  if (has("poker","chip","casino")) return selectObject(1);
+  if (has("earth","globe","home","where am i")) return selectObject(3);
+  if (has("core","yourself")) return selectObject(0);
+  if (has("scan","analy")) return startScan();
+  if (has("next")) return selectObject(view.idx+1);
+  if (has("previous","back")) return selectObject(view.idx-1);
+  if (has("reset","center")) return resetView();
+  if (has("bigger","zoom in")) { view.targetScale = clamp(view.targetScale*1.3,.45,2.6); return; }
+  if (has("smaller","zoom out")) { view.targetScale = clamp(view.targetScale/1.3,.45,2.6); return; }
+  if (has("time")) return say("It is " + new Date().toLocaleTimeString([], {hour:"numeric", minute:"2-digit"}) + ".");
+  if (has("hello","hey","hi ")) return say(`Hello, ${OWNER}.`);
+  if (has("farand","thank")) return say("I heard you. My real brain gets connected in the next build.");
+}
+
+/* ---------------- hand tracking ---------------- */
+const video = $("#video"), skel = $("#skel"), sg = skel.getContext("2d");
+let landmarker = null, handsOn = false, stream = null, lastVideoTime = -1, handsBusy = false;
+const hands = new Map();
+const two = { active:false, d0:1, s0:1 };
+const BONES = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]];
+let gestureLabel = "STANDBY";
+
+function setHands(label, warn=false){ const b = $("#stHands"); b.textContent = label; b.classList.toggle("warn", warn); }
+
+async function toggleHands(quiet=false){
+  if (handsOn || stream) { stopHands(); return; }
+  if (handsBusy) return;
+  handsBusy = true;
+  try {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error("no-camera-api");
+    setHands("STARTING");
+    stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:"user", width:{ideal:640}, height:{ideal:480} }, audio:false });
+    video.srcObject = stream; await video.play().catch(() => {});
+    $("#cam").hidden = false; $("#bHands").classList.add("on");
+  } catch(err) {
+    stream = null; handsBusy = false;
+    setHands("NO CAMERA", true);
+    if (!quiet) say("I can't see you from here. Open me from my own web address and allow camera access.");
+    return;
+  }
+  if (!landmarker) {
+    setHands("LOADING");
+    try {
+      const mp = await import(MP_URL);
+      const files = await mp.FilesetResolver.forVisionTasks(MP_WASM);
+      const opts = d => ({ baseOptions:{ modelAssetPath:HAND_MODEL, delegate:d }, runningMode:"VIDEO", numHands:2,
+                           minHandDetectionConfidence:.6, minHandPresenceConfidence:.5, minTrackingConfidence:.5 });
+      try { landmarker = await mp.HandLandmarker.createFromOptions(files, opts("GPU")); }
+      catch(e) { landmarker = await mp.HandLandmarker.createFromOptions(files, opts("CPU")); }
+    } catch(err) {
+      console.warn("Hand model failed", err);
+      handsBusy = false; stopHands(); setHands("MODEL ERROR", true);
+      say("My vision model did not load. Check the internet connection and try again.");
+      return;
+    }
+  }
+  handsBusy = false; handsOn = true; setHands("TRACKING");
+  say("Hand control online. Pinch to grab. Hold an open palm to scan.");
+}
+function stopHands(){
+  handsOn = false;
+  if (stream) stream.getTracks().forEach(t => t.stop());
+  stream = null; video.srcObject = null; hands.clear();
+  $("#cam").hidden = true; $("#bHands").classList.remove("on"); setHands("OFF");
+}
+
+function processHands(list, now){
+  const aspect = (video.videoWidth && video.videoHeight) ? video.videoWidth/video.videoHeight : 4/3;
+  const seen = new Set();
+  for (const { lm, side } of list) {
+    seen.add(side);
+    let s = hands.get(side);
+    if (!s) { s = { side, first:now, hist:[], hold:0, latch:false, pinched:false, x:W/2, y:H/2, init:false, t:now }; hands.set(side, s); }
+    const dt = clamp((now - s.t)/1000, 0, .1); s.t = now;
+    const d = (a,b) => Math.hypot((a.x-b.x)*aspect, a.y-b.y);
+    const size = d(lm[0], lm[9]) || 1e-3;
+    const pr = d(lm[4], lm[8]) / size;
+    const was = s.pinched;
+    s.pinched = was ? pr < .5 : pr < .3;
+    const ext = [[8,6],[12,10],[16,14],[20,18]].map(([t,p]) => d(lm[t],lm[0]) > d(lm[p],lm[0])*1.12);
+    s.open = ext.every(Boolean) && !s.pinched && pr > .55;
+    const px = (lm[4].x + lm[8].x)/2, py = (lm[4].y + lm[8].y)/2;
+    const tx = clamp(.5 - (px-.5)*1.6, 0, 1)*W, ty = clamp(.5 + (py-.5)*1.6, 0, 1)*H;
+    if (!s.init) { s.x = tx; s.y = ty; s.init = true; } else { s.x += (tx-s.x)*.45; s.y += (ty-s.y)*.45; }
+    s.rx = tx; s.ry = ty; s.lm = lm; s.visible = true; s.seen = now; s.dt = dt;
+    s.pinchStart = s.pinched && !was; s.pinchEnd = !s.pinched && was;
+    s.hist.push({ t:now, x:s.x, y:s.y }); while (s.hist.length && now - s.hist[0].t > 320) s.hist.shift();
+  }
+  for (const [k,s] of hands) { if (!seen.has(k)) { s.visible = false; s.pinched = false; if (now - s.seen > 400) hands.delete(k); } }
+  gestures(now);
+}
+
+let swipeCool = 0;
+function gestures(now){
+  const vis = [...hands.values()].filter(s => s.visible);
+  const pinched = vis.filter(s => s.pinched);
+  document.querySelectorAll(".btn.hand-hover").forEach(b => b.classList.remove("hand-hover"));
+  for (const s of vis) { const el = hitButton(s.x, s.y); if (el) el.classList.add("hand-hover"); }
+  if (!vis.length) { gestureLabel = handsOn ? "NO HANDS" : "STANDBY"; two.active = false; return; }
+  gestureLabel = vis.length === 2 ? "TWO HANDS" : "HAND";
+
+  if (pinched.length >= 2 && !pinched.some(s => s.consumed)) {
+    const [a,b] = pinched, dd = Math.max(20, Math.hypot(a.x-b.x, a.y-b.y));
+    if (!two.active) { two.active = true; two.d0 = dd; two.s0 = view.targetScale; beep(600,.05,"triangle",.04); }
+    view.targetScale = clamp(two.s0 * dd/two.d0, .45, 2.6);
+    gestureLabel = "SCALE ×" + view.targetScale.toFixed(2);
+    for (const s of vis) s.dragging = false;
+    interact(); return;
+  }
+  two.active = false;
+
+  for (const s of vis) {
+    if (s.pinchStart) {
+      // test the raw pinch point first: the smoothed cursor lags a frame behind the fingers
+      const el = hitButton(s.rx, s.ry) || hitButton(s.x, s.y);
+      if (el) { pressButton(el); s.consumed = true; }
+      else { s.dragging = true; s.lx = s.x; s.ly = s.y; beep(660,.035,"triangle",.035); }
+    }
+    if (s.pinched && s.dragging) {
+      const dx = s.x - s.lx, dy = s.y - s.ly;
+      view.yaw += dx*.009; view.pitch = clamp(view.pitch + dy*.007, -1.4, 1.4);
+      view.vyaw = dx*.009; view.vpitch = dy*.007;
+      s.lx = s.x; s.ly = s.y; gestureLabel = "ROTATE"; interact();
+    }
+    if (!s.pinched) { s.dragging = false; s.consumed = false; }
+    if (s.pinched && s.consumed) gestureLabel = "PRESS";
+
+    // swipe: fast horizontal move with a non-pinched hand that has been visible a moment
+    if (!s.pinched && s.hist.length > 3 && now - s.first > 350 && now > swipeCool) {
+      const h0 = s.hist[0], h1 = s.hist[s.hist.length-1], dx = h1.x - h0.x, dy = h1.y - h0.y;
+      if (Math.abs(dx) > W*.24 && Math.abs(dy) < H*.16) {
+        swipeCool = now + 900; s.hist.length = 0; s.hold = 0; s.latch = true;
+        selectObject(view.idx + (dx < 0 ? 1 : -1));
+        gestureLabel = dx < 0 ? "SWIPE ←" : "SWIPE →"; interact(); continue;
+      }
+    }
+    // open palm held still → scan
+    if (s.open) {
+      const h0 = s.hist[0], h1 = s.hist[s.hist.length-1];
+      const moved = h0 ? Math.hypot(h1.x-h0.x, h1.y-h0.y) : 0;
+      if (moved < Math.min(W,H)*.06 && !s.latch) {
+        s.hold += s.dt; gestureLabel = "HOLD " + Math.min(99, Math.round(s.hold/1.1*100)) + "%";
+        if (s.hold >= 1.1) { s.latch = true; s.hold = 0; startScan(); gestureLabel = "SCAN"; }
+      } else if (!s.latch) { s.hold = Math.max(0, s.hold - s.dt*2); gestureLabel = "OPEN PALM"; }
+    } else { s.hold = 0; s.latch = false; }
+  }
+}
+function hitButton(x, y){
+  // forgiving hit area: air-pinching is less precise than a finger on glass
+  for (const [dx, dy] of [[0,0],[14,0],[-14,0],[0,12],[0,-12]]) {
+    const el = document.elementFromPoint(x + dx, y + dy);
+    const b = el && el.closest ? el.closest("[data-act]") : null;
+    if (b && !b.hidden) return b;
+  }
+  return null;
+}
+function pressButton(el){
+  el.classList.add("pressed"); setTimeout(() => el.classList.remove("pressed"), 180);
+  act(el.dataset.act);
+}
+
+function drawSkeleton(list){
+  const w = skel.width = skel.clientWidth*DPR, h = skel.height = skel.clientHeight*DPR;
+  sg.clearRect(0,0,w,h);
+  if (!video.videoWidth) return;
+  // match object-fit: cover
+  const vr = video.videoWidth/video.videoHeight, cr = w/h;
+  let sw = w, sh = h, ox = 0, oy = 0;
+  if (vr > cr) { sw = h*vr; ox = (w-sw)/2; } else { sh = w/vr; oy = (h-sh)/2; }
+  sg.lineWidth = 1.5*DPR; sg.strokeStyle = C.holo; sg.fillStyle = C.ice;
+  for (const lm of list) {
+    sg.beginPath();
+    for (const [a,b] of BONES) { sg.moveTo(ox + lm[a].x*sw, oy + lm[a].y*sh); sg.lineTo(ox + lm[b].x*sw, oy + lm[b].y*sh); }
+    sg.stroke();
+    for (const p of lm) { sg.beginPath(); sg.arc(ox + p.x*sw, oy + p.y*sh, 2*DPR, 0, TAU); sg.fill(); }
+  }
+}
+
+/* ---------------- pointer / keyboard fallback ---------------- */
+const pointers = new Map();
+let pinch0 = null;
+holo.addEventListener("pointerdown", e => { holo.setPointerCapture(e.pointerId); pointers.set(e.pointerId, { x:e.clientX, y:e.clientY }); interact(); });
+holo.addEventListener("pointermove", e => {
+  const p = pointers.get(e.pointerId); if (!p) return;
+  if (pointers.size === 1) {
+    const dx = e.clientX - p.x, dy = e.clientY - p.y;
+    view.yaw += dx*.009; view.pitch = clamp(view.pitch + dy*.007, -1.4, 1.4); view.vyaw = dx*.009; view.vpitch = dy*.007;
+  }
+  p.x = e.clientX; p.y = e.clientY;
+  if (pointers.size === 2) {
+    const [a,b] = [...pointers.values()], d = Math.hypot(a.x-b.x, a.y-b.y);
+    if (!pinch0) pinch0 = { d, s:view.targetScale };
+    view.targetScale = clamp(pinch0.s * d/pinch0.d, .45, 2.6);
+  }
+  interact();
+});
+const up = e => { pointers.delete(e.pointerId); if (pointers.size < 2) pinch0 = null; };
+holo.addEventListener("pointerup", up); holo.addEventListener("pointercancel", up);
+holo.addEventListener("wheel", e => { e.preventDefault(); view.targetScale = clamp(view.targetScale * Math.exp(-e.deltaY*.0015), .45, 2.6); interact(); }, { passive:false });
+holo.addEventListener("dblclick", () => startScan());
+addEventListener("keydown", e => {
+  if (e.target.closest && e.target.closest("button") && (e.key === " " || e.key === "Enter")) return;
+  const k = e.key.toLowerCase();
+  if (k === " " || k === "s") { e.preventDefault(); startScan(); }
+  else if (k === "arrowright" || k === "n") selectObject(view.idx+1);
+  else if (k === "arrowleft" || k === "p") selectObject(view.idx-1);
+  else if (k === "r") resetView();
+  else if (k === "h") toggleHands();
+  else if (k === "v") toggleVoice();
+  else if (k === "l") toggleListen();
+});
+document.querySelectorAll("[data-act]").forEach(b => b.addEventListener("click", () => act(b.dataset.act)));
+function act(a){
+  if (a === "prev") selectObject(view.idx-1);
+  else if (a === "next") selectObject(view.idx+1);
+  else if (a === "scan") startScan();
+  else if (a === "reset") resetView();
+  else if (a === "hands") toggleHands();
+  else if (a === "voice") toggleVoice();
+  else if (a === "listen") toggleListen();
+}
+
+/* ---------------- boot ---------------- */
+$("#bWake").addEventListener("click", () => {
+  try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+  $("#boot").hidden = true;
+  beep(330,.25,"sine",.05); beep(495,.25,"sine",.04,.12); beep(660,.4,"sine",.04,.24);
+  const h = new Date().getHours();
+  const part = h < 5 ? "Working late" : h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
+  voice = pickVoice();
+  say(`${part}, ${OWNER}. Farand is online. Raise a hand when you're ready.`);
+  view.build = 0;
+  toggleHands(true);
+});
+
+/* ---------------- render loop ---------------- */
+let last = performance.now(), fpsAcc = 0, fpsN = 0, fpsT = 0;
+function frame(now){
+  const dt = clamp((now - last)/1000, 0, .05); last = now;
+  fpsAcc += dt; fpsN++; if (now - fpsT > 500) { $("#stFps").textContent = Math.round(fpsN/fpsAcc) + " FPS"; fpsAcc = 0; fpsN = 0; fpsT = now; }
+
+  if (handsOn && landmarker && video.readyState >= 2 && video.currentTime !== lastVideoTime) {
+    lastVideoTime = video.currentTime;
+    try {
+      const r = landmarker.detectForVideo(video, now);
+      const list = (r.landmarks || []).map((lm, i) => ({ lm, side: (r.handedness && r.handedness[i] && r.handedness[i][0] && r.handedness[i][0].categoryName) || ("H"+i) }));
+      // two hands reported with the same side label: keep them apart
+      if (list.length === 2 && list[0].side === list[1].side) list[1].side += "2";
+      processHands(list, now);
+      drawSkeleton(r.landmarks || []);
+    } catch(e) { console.warn(e); }
+  }
+
+  // motion
+  const idle = now - view.lastInteract > 3500;
+  const dragging = pointers.size > 0 || [...hands.values()].some(s => s.dragging);
+  if (!dragging) {
+    view.yaw += view.vyaw; view.pitch = clamp(view.pitch + view.vpitch, -1.4, 1.4);
+    view.vyaw *= .93; view.vpitch *= .9;
+    if (idle) view.yaw += dt * (reduced ? .05 : .22);
+  }
+  view.scale = lerp(view.scale, view.targetScale, 1 - Math.pow(.001, dt));
+  view.build = Math.min(1, view.build + dt/1.1);
+  if (scanS.active) { scanS.t += dt/2.4; if (scanS.t >= 1) finishScan(); }
+
+  draw(now);
+  drawFx(now);
+  $("#gesture").textContent = gestureLabel;
+  if ((fpsN & 7) === 0) {
+    const deg = v => Math.round((((v*180/Math.PI) % 360) + 540) % 360 - 180);
+    $("#stOrient").textContent = `${deg(view.yaw)}° / ${deg(view.pitch)}°`;
+    $("#stScale").textContent = "×" + view.scale.toFixed(2);
+  }
+  requestAnimationFrame(frame);
+}
+
+function draw(now){
+  g.setTransform(DPR,0,0,DPR,0,0);
+  g.clearRect(0,0,W,H);
+  g.globalCompositeOperation = "lighter";
+  g.lineCap = "round";
+  const cx = W/2, cy = H*.5, R0 = Math.min(W*.34, H*.27);
+  const S = R0 * view.scale;
+  const o = OBJECTS[view.idx], m = o.m;
+  const cyw = Math.cos(view.yaw), syw = Math.sin(view.yaw), cp = Math.cos(view.pitch), sp = Math.sin(view.pitch), cam = 4.2;
+  const P = new Float32Array(m.v.length*3);
+  for (let i = 0; i < m.v.length; i++) {
+    const [x,y,z] = m.v[i];
+    const x1 = x*cyw + z*syw, z1 = -x*syw + z*cyw;
+    const y2 = y*cp - z1*sp, z2 = y*sp + z1*cp;
+    const f = cam/(cam + z2);
+    P[i*3] = cx + x1*f*S; P[i*3+1] = cy - y2*f*S; P[i*3+2] = z2;
+  }
+  // scan plane in rotated space (top → bottom)
+  const plane = scanS.active ? lerp(1.35, -1.35, scanS.t) : null;
+  const visibleEdges = Math.floor(m.e.length * easeOut(view.build));
+  // buckets: [depth 0..2] x [normal, accent1(ice), accent2(amber)] + scan hot
+  const paths = {};
+  const pathFor = k => paths[k] || (paths[k] = new Path2D());
+  for (let n = 0; n < visibleEdges; n++) {
+    const [a,b,acc] = m.e[n];
+    const z = (P[a*3+2] + P[b*3+2])/2;
+    let key = (z < -.35 ? 0 : z < .35 ? 1 : 2) + ":" + acc;
+    if (plane !== null) {
+      const ya = (cy - P[a*3+1])/S, yb = (cy - P[b*3+1])/S, ym = (ya+yb)/2;
+      key = Math.abs(ym - plane) < .07 ? "hot" : ym > plane ? key : "cold";
+    }
+    const p = pathFor(key); p.moveTo(P[a*3], P[a*3+1]); p.lineTo(P[b*3], P[b*3+1]);
+  }
+  const depthA = [1, .62, .3];
+  for (const key in paths) {
+    let col = C.holo, a = .9, glow = .07;
+    if (key === "hot") { col = C.ice; a = 1; glow = .22; }
+    else if (key === "cold") { col = C.holo; a = .14; glow = .02; }
+    else {
+      const [d, acc] = key.split(":").map(Number);
+      a = depthA[d]; col = acc === 2 ? C.amber : acc === 1 ? C.ice : C.holo;
+      if (scanS.done) a = Math.min(1, a*1.15);
+    }
+    g.strokeStyle = rgba(col, glow); g.lineWidth = 7; g.stroke(paths[key]);
+    g.strokeStyle = rgba(col, a); g.lineWidth = key === "hot" ? 2.2 : 1.3; g.stroke(paths[key]);
+  }
+
+  // fabrication ring while building
+  if (view.build < 1) {
+    g.strokeStyle = rgba(C.ice, .7); g.lineWidth = 2;
+    g.beginPath(); g.arc(cx, cy, R0*1.04, -Math.PI/2, -Math.PI/2 + TAU*view.build); g.stroke();
+  }
+
+  // scan line
+  if (plane !== null) {
+    const sy = cy - plane*S*(cam/(cam)), half = R0*1.25;
+    const grd = g.createLinearGradient(cx-half, 0, cx+half, 0);
+    grd.addColorStop(0, rgba(C.ice,0)); grd.addColorStop(.5, rgba(C.ice,.95)); grd.addColorStop(1, rgba(C.ice,0));
+    g.strokeStyle = grd; g.lineWidth = 2; g.beginPath(); g.moveTo(cx-half, sy); g.lineTo(cx+half, sy); g.stroke();
+    const band = g.createLinearGradient(0, sy-40, 0, sy);
+    band.addColorStop(0, rgba(C.holo,0)); band.addColorStop(1, rgba(C.holo,.12));
+    g.fillStyle = band; g.fillRect(cx-half, sy-40, half*2, 40);
+  }
+
+  // reticle rings
+  const t = now/1000, spin = reduced ? 0 : t;
+  g.strokeStyle = rgba(C.holo, .22); g.lineWidth = 1;
+  g.beginPath(); g.arc(cx, cy, R0*1.16, 0, TAU); g.stroke();
+  g.strokeStyle = rgba(C.holo, .35); g.beginPath();
+  for (let i = 0; i < 120; i++) {
+    const a = i/120*TAU + spin*.05, r1 = R0*1.22, r2 = r1 + (i%10 === 0 ? 12 : 5);
+    g.moveTo(cx + r1*Math.cos(a), cy + r1*Math.sin(a)); g.lineTo(cx + r2*Math.cos(a), cy + r2*Math.sin(a));
+  }
+  g.stroke();
+  g.lineWidth = 3;
+  for (let k = 0; k < 3; k++) {
+    const a = -spin*.18 + k*TAU/3;
+    g.strokeStyle = rgba(C.holo, .5); g.beginPath(); g.arc(cx, cy, R0*1.34, a, a + .7); g.stroke();
+  }
+  g.lineWidth = 1.5; g.strokeStyle = rgba(C.amber, .45);
+  g.beginPath(); g.arc(cx, cy, R0*1.4, spin*.3, spin*.3 + .25); g.stroke();
+
+  // readouts
+  g.globalCompositeOperation = "source-over";
+  g.textAlign = "center";
+  if (scanS.active) {
+    g.fillStyle = rgba(C.ice, .95); g.font = `600 13px "Chakra Petch", sans-serif`;
+    g.fillText("S C A N N I N G", cx, cy - R0*1.5);
+    g.font = `600 28px "Chakra Petch", sans-serif`;
+    g.fillText(Math.min(100, Math.round(scanS.t*100)) + "%", cx, cy - R0*1.5 + 32);
+    g.strokeStyle = rgba(C.ice, .9); g.lineWidth = 2;
+    g.beginPath(); g.arc(cx, cy, R0*1.1, -Math.PI/2, -Math.PI/2 + TAU*scanS.t); g.stroke();
+  } else if (view.build < 1) {
+    g.fillStyle = rgba(C.ice, .8); g.font = `600 12px "Chakra Petch", sans-serif`;
+    g.fillText("F A B R I C A T I N G   " + Math.round(view.build*100) + "%", cx, cy - R0*1.5);
+  } else if (scanS.done) {
+    g.fillStyle = rgba(C.holo, .85); g.font = `600 12px "Chakra Petch", sans-serif`;
+    g.fillText("S C A N   C O M P L E T E", cx, cy - R0*1.5);
+  }
+}
+const easeOut = x => 1 - Math.pow(1-x, 3);
+
+function drawFx(now){
+  fg.setTransform(DPR,0,0,DPR,0,0);
+  fg.clearRect(0,0,W,H);
+  if (!hands.size) return;
+  fg.globalCompositeOperation = "lighter";
+  for (const s of hands.values()) {
+    if (!s.visible || !s.lm) continue;
+    // big ghost skeleton, same mapping as the cursor
+    const map = p => [clamp(.5 - (p.x-.5)*1.6, 0, 1)*W, clamp(.5 + (p.y-.5)*1.6, 0, 1)*H];
+    fg.strokeStyle = rgba(C.holo, .18); fg.lineWidth = 2; fg.beginPath();
+    for (const [a,b] of BONES) { const A = map(s.lm[a]), B = map(s.lm[b]); fg.moveTo(A[0],A[1]); fg.lineTo(B[0],B[1]); }
+    fg.stroke();
+    fg.fillStyle = rgba(C.holo, .35);
+    for (const i of [4,8,12,16,20]) { const [x,y] = map(s.lm[i]); fg.beginPath(); fg.arc(x, y, 3, 0, TAU); fg.fill(); }
+    // cursor
+    const { x, y } = s;
+    fg.strokeStyle = rgba(s.pinched ? C.ice : C.holo, .95); fg.lineWidth = 1.5;
+    fg.beginPath(); fg.arc(x, y, s.pinched ? 10 : 18, 0, TAU); fg.stroke();
+    fg.beginPath();
+    for (const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]) { fg.moveTo(x + dx*24, y + dy*24); fg.lineTo(x + dx*31, y + dy*31); }
+    fg.stroke();
+    if (s.pinched) { fg.fillStyle = rgba(C.ice, .9); fg.beginPath(); fg.arc(x, y, 4, 0, TAU); fg.fill(); }
+    if (s.hold > 0) {
+      fg.strokeStyle = rgba(C.amber, .95); fg.lineWidth = 3;
+      fg.beginPath(); fg.arc(x, y, 28, -Math.PI/2, -Math.PI/2 + TAU*Math.min(1, s.hold/1.1)); fg.stroke();
+    }
+    fg.globalCompositeOperation = "source-over";
+    fg.fillStyle = rgba(C.holo, .8); fg.font = "10px monospace"; fg.textAlign = "left";
+    fg.fillText(s.side.toUpperCase().slice(0,1), x + 22, y - 18);
+    fg.globalCompositeOperation = "lighter";
+  }
+}
+
+/* ---------------- clock ---------------- */
+function tick(){
+  const d = new Date();
+  $("#time").textContent = d.toLocaleTimeString([], { hour:"2-digit", minute:"2-digit", second:"2-digit", hour12:false });
+  $("#date").textContent = d.toLocaleDateString("en-CA", { weekday:"short", day:"2-digit", month:"short", year:"numeric" }).toUpperCase();
+}
+tick(); setInterval(tick, 1000);
+
+selectObject(0, false);
+view.build = 1;
+requestAnimationFrame(frame);
+
+// test hook: feed synthetic landmarks [{lm:[21 points], side:"Left"}]
+window.farand = { feed: (list) => processHands(list, performance.now()), select: selectObject, scan: startScan, view, hands };
+</script>
+
+</body>
+</html>
