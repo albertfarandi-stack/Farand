@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Farand">
 <style>*,*::before,*::after{box-sizing:border-box}body{margin:0}[hidden]{display:none!important}</style>
 </head>
 <body>
@@ -69,42 +70,60 @@ canvas.layer{position:fixed;inset:0;display:block}
 #analysis.show .row{animation:rowin .35s ease forwards}
 @keyframes rowin{to{opacity:1;transform:none}}
 .await{font-family:var(--font-m);font-size:12px;letter-spacing:.14em;color:var(--holo-soft);line-height:1.6}
+.capture{margin:0;position:relative;border:1px solid var(--line);padding:6px}
+.capture img{display:block;width:100%;max-height:220px;object-fit:cover;filter:saturate(.75) contrast(1.05)}
+.capture::before,.capture::after{content:"";position:absolute;width:14px;height:14px;border:2px solid var(--holo)}
+.capture::before{left:-1px;top:-1px;border-right:0;border-bottom:0}
+.capture::after{right:-1px;bottom:-1px;border-left:0;border-top:0}
+.capture figcaption{font-family:var(--font-m);font-size:10px;letter-spacing:.2em;color:var(--holo-soft);margin-top:6px}
 
 .dock{grid-column:1/-1;display:flex;flex-wrap:wrap;justify-content:center;gap:10px 12px;pointer-events:none}
 .btn{pointer-events:auto;appearance:none;border:1px solid var(--holo-soft);background:rgba(98,227,255,.1);color:var(--ice);
-  font:600 13px/1 var(--font-d);letter-spacing:.24em;padding:15px 22px;min-width:96px;cursor:pointer;
+  font:600 13px/1 var(--font-d);letter-spacing:.24em;padding:15px 20px;min-width:90px;cursor:pointer;
   transform:skewX(-16deg);transition:background .15s,box-shadow .15s,transform .15s}
 .btn>span{display:inline-block;transform:skewX(16deg)}
 .btn:hover,.btn.hand-hover{background:rgba(98,227,255,.28);box-shadow:0 0 18px rgba(98,227,255,.45)}
 .btn.on{background:var(--holo);color:var(--void);box-shadow:0 0 22px rgba(98,227,255,.6)}
 .btn.primary{border-color:var(--amber);background:rgba(255,184,77,.14)}
 .btn.primary:hover,.btn.primary.hand-hover{background:rgba(255,184,77,.3);box-shadow:0 0 18px rgba(255,184,77,.45)}
+.btn.primary.on{background:var(--amber);color:var(--void)}
 .btn.pressed{transform:skewX(-16deg) scale(.94);background:var(--ice);color:var(--void)}
 .btn:focus-visible{outline:2px solid var(--ice);outline-offset:3px}
+.btn:disabled{opacity:.4}
 
 .cam{position:fixed;z-index:4;left:max(16px,env(safe-area-inset-left,0px));bottom:calc(max(14px,env(safe-area-inset-bottom,0px)) + 64px);
-  width:200px;aspect-ratio:4/3;max-width:40vw;border:1px solid var(--line);background:#000;overflow:hidden;pointer-events:none}
-.cam video,.cam canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
-.cam video{opacity:.45;filter:grayscale(1) contrast(1.2)}
-.cam span{position:absolute;left:8px;top:6px;font:10px var(--font-m);letter-spacing:.2em;color:var(--holo)}
+  width:200px;aspect-ratio:4/3;max-width:40vw;border:1px solid var(--line);background:#000;overflow:hidden}
+.cam video{position:absolute;left:0;top:0;width:2px;height:2px;opacity:0;pointer-events:none}
+.cam canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1);pointer-events:none}
+#det{opacity:.5;filter:grayscale(1) contrast(1.2)}
+.cam span{position:absolute;left:8px;top:6px;font:10px var(--font-m);letter-spacing:.2em;color:var(--holo);pointer-events:none}
+.cam .rot{position:absolute;right:6px;bottom:6px;appearance:none;border:1px solid var(--holo-soft);background:rgba(2,7,11,.7);color:var(--ice);
+  font:600 10px/1 var(--font-m);letter-spacing:.16em;padding:7px 8px;cursor:pointer}
+.cam .rot:focus-visible{outline:2px solid var(--ice)}
 
 .caption{position:fixed;z-index:4;left:50%;bottom:calc(max(14px,env(safe-area-inset-bottom,0px)) + 76px);transform:translateX(-50%);
-  width:min(640px,calc(100% - 32px));text-align:center;font-size:17px;font-weight:500;letter-spacing:.04em;color:var(--ice);
-  text-shadow:0 0 10px rgba(2,7,11,.9),0 0 18px var(--holo-soft);pointer-events:none;transition:opacity .6s;text-wrap:balance}
-.caption b{color:var(--holo);font-weight:600;letter-spacing:.2em;font-size:12px;margin-right:8px}
+  width:min(680px,calc(100% - 32px));text-align:center;pointer-events:none;display:grid;gap:6px;justify-items:center}
+#heard{font-family:var(--font-m);font-size:12px;letter-spacing:.08em;color:var(--holo-soft);transition:opacity .6s;text-wrap:balance}
+#said{font-size:17px;font-weight:500;letter-spacing:.04em;color:var(--ice);transition:opacity .6s;text-wrap:balance;
+  text-shadow:0 0 10px rgba(2,7,11,.9),0 0 18px var(--holo-soft)}
+#said b,#heard b{color:var(--holo);font-weight:600;letter-spacing:.2em;font-size:12px;margin-right:8px}
+
+#flash{position:fixed;inset:0;z-index:8;background:var(--ice);opacity:0;pointer-events:none;transition:opacity .5s}
+#count{position:fixed;inset:0;z-index:7;display:grid;place-items:center;pointer-events:none;font:700 140px/1 var(--font-d);color:var(--ice);
+  text-shadow:0 0 40px var(--holo)}
 
 .boot{position:fixed;inset:0;z-index:10;display:grid;place-items:center;background:radial-gradient(circle at 50% 45%,rgba(6,24,32,.55),rgba(2,7,11,.92) 70%);
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 .boot-inner{text-align:center;display:grid;gap:18px;justify-items:center}
 .boot h1{margin:0;font-size:clamp(44px,9vw,96px);letter-spacing:.42em;font-weight:600;color:var(--ice);padding-left:.42em;text-shadow:0 0 30px var(--holo-soft)}
-.boot p{margin:0;font-family:var(--font-m);font-size:12px;letter-spacing:.24em;color:var(--holo-soft);max-width:44ch;line-height:1.7}
+.boot p{margin:0;font-family:var(--font-m);font-size:12px;letter-spacing:.2em;color:var(--holo-soft);max-width:46ch;line-height:1.7}
 .boot .btn{font-size:15px;padding:18px 34px}
 
 @media (max-width:860px){
   .hud{grid-template-columns:1fr}
   .panel{display:none}
   .cam{width:140px}
-  .btn{min-width:0;padding:13px 14px;letter-spacing:.16em;font-size:12px}
+  .btn{min-width:0;padding:13px 12px;letter-spacing:.14em;font-size:12px}
   .brand{font-size:15px}
   #time{font-size:22px}
 }
@@ -116,17 +135,17 @@ canvas.layer{position:fixed;inset:0;display:block}
 
 <div class="hud">
   <header class="top">
-    <div class="brand"><span class="mark" aria-hidden="true"></span><div>FARAND<small>PERSONAL SYSTEM · BUILD 0.1</small></div></div>
+    <div class="brand"><span class="mark" aria-hidden="true"></span><div>FARAND<small>PERSONAL SYSTEM · BUILD 0.2</small></div></div>
     <div class="clock"><span id="time">--:--:--</span><span id="date">---</span></div>
   </header>
 
   <aside class="panel left">
     <h3>SYSTEM</h3>
     <div class="rows">
-      <div class="row"><span>CORE</span><b>ONLINE</b></div>
-      <div class="row"><span>VOICE</span><b id="stVoice">ON</b></div>
+      <div class="row"><span>BRAIN</span><b id="stBrain">OFF</b></div>
+      <div class="row"><span>MIC</span><b id="stMic">OFF</b></div>
       <div class="row"><span>HANDS</span><b id="stHands">OFF</b></div>
-      <div class="row"><span>LISTEN</span><b id="stListen">OFF</b></div>
+      <div class="row"><span>CAMERA</span><b id="stCam">0°</b></div>
       <div class="row"><span>FRAME</span><b id="stFps">-- FPS</b></div>
       <div class="row"><span>AZ / EL</span><b id="stOrient">0° / 0°</b></div>
       <div class="row"><span>SCALE</span><b id="stScale">×1.00</b></div>
@@ -135,11 +154,11 @@ canvas.layer{position:fixed;inset:0;display:block}
     <div id="gesture">STANDBY</div>
     <h3>CONTROLS</h3>
     <div class="legend">
+      <div><i>JUST TALK</i>Farand listens all the time</div>
       <div><i>PINCH+DRAG</i>Rotate the hologram</div>
       <div><i>TWO PINCHES</i>Pull apart to scale</div>
       <div><i>OPEN PALM</i>Hold still to scan</div>
       <div><i>SWIPE</i>Next or previous object</div>
-      <div><i>PINCH BUTTON</i>Press it in the air</div>
     </div>
   </aside>
 
@@ -151,45 +170,62 @@ canvas.layer{position:fixed;inset:0;display:block}
     <p class="idx" id="objIdx">01 / 04 · LINES 000</p>
     <h3>ANALYSIS</h3>
     <div id="analysis" class="rows"><div class="await">AWAITING SCAN. HOLD AN OPEN PALM OR PRESS SCAN.</div></div>
+    <h3 id="lookHead" hidden>VISUAL</h3>
+    <figure class="capture" id="lookFig" hidden><img id="lookImg" alt="Last photo Farand looked at"><figcaption id="lookCap">CAPTURE</figcaption></figure>
   </aside>
 
   <nav class="dock" aria-label="Farand controls">
     <button class="btn" id="bPrev" data-act="prev"><span>PREV</span></button>
-    <button class="btn primary" id="bScan" data-act="scan"><span>SCAN</span></button>
+    <button class="btn" id="bScan" data-act="scan"><span>SCAN</span></button>
     <button class="btn" id="bNext" data-act="next"><span>NEXT</span></button>
     <button class="btn" id="bReset" data-act="reset"><span>RESET</span></button>
     <button class="btn" id="bHands" data-act="hands"><span>HANDS</span></button>
-    <button class="btn on" id="bVoice" data-act="voice"><span>VOICE</span></button>
-    <button class="btn" id="bListen" data-act="listen"><span>LISTEN</span></button>
+    <button class="btn primary" id="bTalk" data-act="talk"><span>TALK</span></button>
+    <button class="btn" id="bLook" data-act="look"><span>LOOK</span></button>
+    <button class="btn" id="bMute" data-act="mute"><span>MUTE</span></button>
   </nav>
 </div>
 
-<div class="cam" id="cam" hidden><video id="video" playsinline muted autoplay></video><canvas id="skel"></canvas><span>OPTICAL INPUT</span></div>
-<div class="caption" id="caption" style="opacity:0"></div>
+<div class="cam" id="cam" hidden>
+  <video id="video" playsinline muted autoplay></video>
+  <canvas id="det"></canvas><canvas id="skel"></canvas>
+  <span>OPTICAL INPUT</span>
+  <button class="rot" id="bRot" type="button" aria-label="Rotate camera">⟳ ROTATE</button>
+</div>
+<div class="caption"><div id="heard" style="opacity:0"></div><div id="said" style="opacity:0"></div></div>
+<div id="count" hidden></div>
+<div id="flash"></div>
 <canvas id="fx" class="layer"></canvas>
 
 <div class="boot" id="boot">
   <div class="boot-inner">
     <span class="mark" style="width:54px;height:54px" aria-hidden="true"></span>
     <h1>FARAND</h1>
-    <p>Personal system. Hand control uses the front camera; nothing leaves this device.</p>
+    <p>Allow the camera and microphone. Hand tracking stays on this iPad. Farand only gets a photo when you ask him to look.</p>
     <button class="btn primary" id="bWake"><span>WAKE FARAND</span></button>
   </div>
 </div>
 
 <script type="module">
 /* ---------------- config ---------------- */
+const AGENT_ID = "agent_4501m5ga9eg4fpx8xcrxmqmk196q";          // ElevenLabs agent "Farand" (public, no key needed)
+const EL_WS = "wss://api.elevenlabs.io/v1/convai/conversation";
+const EL_API = "https://api.elevenlabs.io/v1/convai/conversations";
 const MP_VER = "0.10.14";
 const MP_URL = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VER}/vision_bundle.mjs`;
 const MP_WASM = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VER}/wasm`;
 const HAND_MODEL = "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task";
-const OWNER = "Albert";
 
 const $ = s => document.querySelector(s);
 const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
 const lerp = (a,b,t) => a + (b-a)*t;
+const sleep = ms => new Promise(r => setTimeout(r, ms));
 const TAU = Math.PI*2;
 const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const store = {
+  get(k, d){ try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch(e) { return d; } },
+  set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e) {} },
+};
 
 const css = getComputedStyle(document.documentElement);
 const C = {
@@ -198,6 +234,7 @@ const C = {
   amber: css.getPropertyValue("--amber").trim() || "#ffb84d",
 };
 const rgba = (hex, a) => { const n = parseInt(hex.slice(1),16); return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`; };
+function setRow(id, text, warn=false){ const b = $(id); b.textContent = text; b.classList.toggle("warn", warn); }
 
 /* ---------------- canvases ---------------- */
 const bg = $("#bg"), holo = $("#holo"), fx = $("#fx");
@@ -267,9 +304,9 @@ function buildCore(){
   poly(m, circ(1.06, 80), true);
   const dash = circ(1.14, 96);
   for (let i = 0; i < dash.length; i += 4) poly(m, [dash[i], dash[i+1], dash[i+2]]);
-  return { m, name:"FARAND CORE", pose:[.5,-.35],
+  return { m, name:"FARAND CORE", pose:[.35,-.25],
     rows:[["CLASS","Assistant kernel"],["PERSONALITY","Calm · a bit playful"],["POWER","Mostly coffee"],["UPTIME","Since you woke me"],["STATUS","All systems nominal"]],
-    quip:`Core scan complete. Everything is nominal, ${OWNER}. I would tell you if it wasn't. Probably.` };
+    quip:"Core scan complete. Everything is nominal. I would tell you if it wasn't. Probably." };
 }
 function buildChip(){
   const m = Model();
@@ -286,9 +323,9 @@ function buildChip(){
   poly(m, [[-s*.55,-s*.55,z],[s*.55,-s*.55,z],[s*.55,s*.55,z],[-s*.55,s*.55,z]], true, 2);
   const traces = [[[s,0],[.3,0],[.36,.08],[.5,.08]], [[0,s],[0,.28],[-.1,.38],[-.1,.5]], [[-s,.05],[-.32,.05],[-.4,-.05],[-.52,-.05]], [[.05,-s],[.05,-.3],[.16,-.4],[.16,-.52]], [[s,-.1],[.26,-.1],[.36,-.24]]];
   for (const t of traces) poly(m, t.map(([x,y]) => [x,y,z]), false, 2);
-  return { m, name:"POKER CHIP", pose:[.3,-.55],
+  return { m, name:"POKER CHIP", pose:[.3,-.4],
     rows:[["SIZE","Ø40 × 3.5 mm"],["CONTENTS","1 circuit board (suspicious)"],["HOUSE EDGE","Still the house's"],["CHEAT ODDS","0.3%"],["ADVICE","Do not"]],
-    quip:"Scan complete. It is a poker chip with a computer inside. I am obligated to advise against bringing it to a casino." };
+    quip:"It is a poker chip with a computer inside. I'm obligated to advise against bringing it to a casino." };
 }
 function buildSantoor(){
   const m = Model();
@@ -305,9 +342,9 @@ function buildSantoor(){
   poly(m, circ(.07, 24, -t-.001, .32, .2), true);
   poly(m, [[-.72,yb+.02,-t-.05],[-.72,yb+.02,-t-.25],[-.62,yb+.02,-t-.32]], false, 2);
   poly(m, [[.62,yb+.02,-t-.05],[.62,yb+.02,-t-.25],[.72,yb+.02,-t-.32]], false, 2);
-  return { m, name:"SANTOOR", pose:[0,-.75],
+  return { m, name:"SANTOOR", pose:[0,-.6],
     rows:[["FAMILY","Hammered dulcimer"],["STRINGS","72 in 18 courses"],["BRIDGES","9 + 9"],["RANGE","About 3 octaves"],["SUGGESTED","Dastgah-e Shur"]],
-    quip:"Santoor identified. Seventy two strings, and every one of them wants tuning. Shall we start in Shur?" };
+    quip:"Santoor identified. Seventy two strings, and every one of them wants tuning." };
 }
 const HOME = { lat:43.88, lon:-79.44 };
 function sph(lat, lon, r=1){ const la = lat*Math.PI/180, lo = lon*Math.PI/180; return [r*Math.cos(la)*Math.sin(lo), r*Math.sin(la), -r*Math.cos(la)*Math.cos(lo)]; }
@@ -317,9 +354,9 @@ function buildEarth(){
   for (let lon = 0; lon < 360; lon += 30) poly(m, Array.from({length:25}, (_,i) => sph(-90 + i*7.5, lon)));
   poly(m, [sph(HOME.lat,HOME.lon,1), sph(HOME.lat,HOME.lon,1.32)], false, 2);
   for (const rad of [3, 6]) poly(m, Array.from({length:24}, (_,i) => { const a = i/24*TAU; return sph(HOME.lat + rad*Math.sin(a), HOME.lon + rad*Math.cos(a)/Math.cos(HOME.lat*Math.PI/180)); }), true, 2);
-  return { m, name:"HOME BASE", pose:[HOME.lon*Math.PI/180, -.45],
+  return { m, name:"HOME BASE", pose:[HOME.lon*Math.PI/180, -.4],
     rows:[["LOCATION","Richmond Hill, ON"],["COORDS","43.88° N · 79.44° W"],["LOCAL TIME","__TIME__"],["ELEVATION","≈ 230 m"],["WEATHER","No window yet"]],
-    quip:"Home base located. Richmond Hill, Ontario. I can't tell you the weather yet. Nobody has given me a window." };
+    quip:"Home base located. Richmond Hill, Ontario." };
 }
 const OBJECTS = [buildCore(), buildChip(), buildSantoor(), buildEarth()];
 
@@ -338,7 +375,7 @@ function selectObject(i, announce=true){
   $("#analysis").className = "rows";
   $("#analysis").innerHTML = '<div class="await">AWAITING SCAN. HOLD AN OPEN PALM OR PRESS SCAN.</div>';
   beep(520, .05, "triangle", .05); beep(780, .07, "triangle", .04, .06);
-  if (announce) caption(o.name.toLowerCase().replace(/^\w/, c => c.toUpperCase()) + ".", false);
+  if (announce) { gestureLabel = o.name; }
 }
 function startScan(){
   if (scanS.active) return;
@@ -352,25 +389,45 @@ function finishScan(){
   scanS.active = false; scanS.done = true;
   const o = OBJECTS[view.idx], el = $("#analysis");
   el.innerHTML = "";
+  const readout = [];
   o.rows.forEach(([k,v], i) => {
+    const val = v === "__TIME__" ? new Date().toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"}) : v;
+    readout.push(`${k.toLowerCase()}: ${val}`);
     const row = document.createElement("div"); row.className = "row"; row.style.animationDelay = (i*.12)+"s";
     const a = document.createElement("span"); a.textContent = k;
-    const b = document.createElement("b"); b.textContent = v === "__TIME__" ? new Date().toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"}) : v;
+    const b = document.createElement("b"); b.textContent = val;
     if (k === "ADVICE" || k === "CHEAT ODDS") b.className = "warn";
     row.append(a,b); el.append(row);
   });
   void el.offsetWidth; el.className = "rows show";
   beep(880,.08,"sine",.05); beep(1320,.12,"sine",.04,.09);
-  say(o.quip);
+  if (brain.ready) brainSend({ type:"user_message", text:`[HUD] Albert just scanned the ${o.name.toLowerCase()} hologram. Readout: ${readout.join("; ")}.` });
+  else caption(o.quip);
 }
 function resetView(){
   const o = OBJECTS[view.idx];
   view.yaw = o.pose[0]; view.pitch = o.pose[1]; view.vyaw = view.vpitch = 0; view.targetScale = 1;
   beep(440,.06,"triangle",.05); interact();
 }
+function hudAction(a){
+  const map = { show_core:0, show_poker_chip:1, show_santoor:2, show_globe:3 };
+  if (a in map) selectObject(map[a]);
+  else if (a === "scan") startScan();
+  else if (a === "next") selectObject(view.idx+1);
+  else if (a === "previous") selectObject(view.idx-1);
+  else if (a === "reset") resetView();
+  else if (a === "zoom_in") view.targetScale = clamp(view.targetScale*1.35, .45, 2.6);
+  else if (a === "zoom_out") view.targetScale = clamp(view.targetScale/1.35, .45, 2.6);
+  interact();
+}
 
-/* ---------------- sound + voice ---------------- */
+/* ---------------- sound ---------------- */
 let ac = null;
+function ensureAudio(){
+  if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {} }
+  if (ac && ac.state !== "running") ac.resume().catch(() => {});
+  return ac;
+}
 function beep(f=880, d=.06, type="sine", vol=.05, delay=0){
   if (!ac) return;
   const t = ac.currentTime + delay, o = ac.createOscillator(), gn = ac.createGain();
@@ -387,87 +444,298 @@ function sweep(f0, f1, d){
   o.connect(lp).connect(gn).connect(ac.destination); o.start(t); o.stop(t + d + .05);
 }
 
-let voiceOn = true, voice = null;
-const hasTTS = "speechSynthesis" in window;
-function pickVoice(){
-  if (!hasTTS) return null;
-  const vs = speechSynthesis.getVoices();
-  for (const n of ["Daniel","Arthur","Oliver","Aaron","Rishi","Gordon","Google UK English Male","Alex","Fred"]) {
-    const v = vs.find(v => v.name.startsWith(n) && v.lang.startsWith("en")); if (v) return v;
-  }
-  return vs.find(v => v.lang === "en-GB") || vs.find(v => v.lang.startsWith("en")) || null;
-}
-if (hasTTS) speechSynthesis.onvoiceschanged = () => { voice = pickVoice(); };
-let capTimer = 0;
-function caption(text, spoken=true){
-  const el = $("#caption");
+/* ---------------- captions ---------------- */
+let capTimer = 0, heardTimer = 0;
+const stripTags = s => String(s).replace(/\[[^\]]{1,24}\]\s*/g, "").trim();
+function caption(text){
+  const el = $("#said"); text = stripTags(text); if (!text) return;
   el.innerHTML = ""; const b = document.createElement("b"); b.textContent = "FARAND";
   el.append(b, document.createTextNode(text)); el.style.opacity = 1;
-  clearTimeout(capTimer); capTimer = setTimeout(() => el.style.opacity = 0, 2500 + text.length*55);
+  clearTimeout(capTimer); capTimer = setTimeout(() => el.style.opacity = 0, 3000 + text.length*60);
 }
-function say(text){
-  caption(text);
-  if (!voiceOn || !hasTTS) return;
+function heard(text){
+  const el = $("#heard");
+  el.innerHTML = ""; const b = document.createElement("b"); b.textContent = "YOU";
+  el.append(b, document.createTextNode(text)); el.style.opacity = 1;
+  clearTimeout(heardTimer); heardTimer = setTimeout(() => el.style.opacity = 0, 5000);
+}
+const say = caption;
+
+/* ---------------- brain: ElevenLabs agent over websocket ---------------- */
+const brain = { ws:null, ready:false, convId:null, inRate:16000, outRate:16000, mic:null, src:null, proc:null,
+                muted:false, playT:0, sources:[], segs:[], level:0, state:"OFF", wanted:false, lastAgentAt:0 };
+const rateOf = (fmt, d) => { const m = /(\d{4,6})/.exec(fmt || ""); return m ? +m[1] : d; };
+function setBrain(state, warn=false){ brain.state = state; setRow("#stBrain", state, warn); }
+function brainSend(obj){ if (brain.ws && brain.ws.readyState === 1) { brain.ws.send(JSON.stringify(obj)); return true; } return false; }
+function b64(buf){ const u = new Uint8Array(buf); let s = ""; for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(s); }
+function unb64(str){ const s = atob(str); const u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return u; }
+
+async function toggleBrain(){ if (brain.ws) stopBrain(true); else startBrain(); }
+async function startBrain(){
+  if (brain.ws) return;
+  ensureAudio();
+  brain.wanted = true;
+  setBrain("CONNECTING"); $("#bTalk").classList.add("on");
   try {
-    speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    voice = voice || pickVoice(); if (voice) u.voice = voice;
-    u.rate = 1.0; u.pitch = .88;
-    speechSynthesis.speak(u);
-  } catch(e) {}
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error("no media api");
+    brain.mic = await navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:true, noiseSuppression:true, autoGainControl:true, channelCount:1 } });
+  } catch(e) {
+    setBrain("NO MIC", true); setRow("#stMic", "BLOCKED", true); $("#bTalk").classList.remove("on"); brain.wanted = false;
+    caption("I can't hear you. Allow the microphone for this site, then tap TALK.");
+    return;
+  }
+  ensureAudio();
+  let ws;
+  try { ws = new WebSocket(`${EL_WS}?agent_id=${encodeURIComponent(AGENT_ID)}`); }
+  catch(e) { setBrain("NO CONNECTION", true); cleanupBrain(); return; }
+  brain.ws = ws;
+  ws.onopen = () => { ws.send(JSON.stringify({ type:"conversation_initiation_client_data" })); };
+  ws.onmessage = ev => { let m; try { m = JSON.parse(ev.data); } catch(e) { return; } onBrainMessage(m); };
+  ws.onerror = () => { setBrain("NETWORK ERROR", true); };
+  ws.onclose = ev => {
+    const wanted = brain.wanted;
+    cleanupBrain();
+    if (wanted) { setBrain("ENDED", true); caption("Our call ended. That happens after ten minutes, or if the internet drops. Tap TALK to start again."); }
+    else setBrain("OFF");
+  };
 }
-function toggleVoice(){
-  voiceOn = !voiceOn;
-  $("#bVoice").classList.toggle("on", voiceOn);
-  $("#stVoice").textContent = voiceOn ? "ON" : "OFF";
-  if (!voiceOn && hasTTS) speechSynthesis.cancel(); else say("Voice on.");
+function stopBrain(byUser){
+  brain.wanted = false;
+  try { brain.ws && brain.ws.close(); } catch(e) {}
+  cleanupBrain(); setBrain("OFF");
+}
+function cleanupBrain(){
+  brain.ws = null; brain.ready = false; brain.convId = null;
+  stopPlayback();
+  try { brain.proc && brain.proc.disconnect(); brain.src && brain.src.disconnect(); } catch(e) {}
+  brain.proc = brain.src = null;
+  if (brain.mic) brain.mic.getTracks().forEach(t => t.stop());
+  brain.mic = null;
+  setRow("#stMic", "OFF"); $("#bTalk").classList.remove("on"); $("#bMute").classList.remove("on");
+}
+function startMicStream(){
+  if (!brain.mic || !ac || brain.proc) return;
+  const src = ac.createMediaStreamSource(brain.mic);
+  const proc = ac.createScriptProcessor(4096, 1, 1);
+  const ratio = ac.sampleRate / brain.inRate;
+  proc.onaudioprocess = e => {
+    e.outputBuffer.getChannelData(0).fill(0);
+    if (!brain.ready || brain.muted) return;
+    const inp = e.inputBuffer.getChannelData(0), n = Math.floor(inp.length / ratio), pcm = new Int16Array(n);
+    let peak = 0;
+    for (let i = 0; i < n; i++) {
+      const a = Math.floor(i*ratio), b = Math.max(a+1, Math.floor((i+1)*ratio));
+      let s = 0; for (let j = a; j < b && j < inp.length; j++) s += inp[j];
+      const v = clamp(s/(b-a), -1, 1); pcm[i] = v*0x7fff; peak = Math.max(peak, Math.abs(v));
+    }
+    micLevel = Math.max(micLevel*.6, peak);
+    brainSend({ user_audio_chunk: b64(pcm.buffer) });
+  };
+  src.connect(proc); proc.connect(ac.destination);
+  brain.src = src; brain.proc = proc;
+  setRow("#stMic", "LIVE");
+}
+let micLevel = 0;
+function toggleMute(){
+  if (!brain.ws) { caption("Tap TALK first."); return; }
+  brain.muted = !brain.muted;
+  $("#bMute").classList.toggle("on", brain.muted);
+  setRow("#stMic", brain.muted ? "MUTED" : "LIVE", brain.muted);
 }
 
-/* ---------------- listening (voice commands) ---------------- */
-const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-let rec = null, listening = false;
-if (!SR) $("#bListen").hidden = true;
-function setListen(on, label){
-  listening = on; $("#bListen").classList.toggle("on", on);
-  $("#stListen").textContent = label || (on ? "ON" : "OFF");
+function onBrainMessage(m){
+  switch (m.type) {
+    case "conversation_initiation_metadata": {
+      const e = m.conversation_initiation_metadata_event || m;
+      brain.convId = e.conversation_id;
+      brain.outRate = rateOf(e.agent_output_audio_format, 16000);
+      brain.inRate = rateOf(e.user_input_audio_format, 16000);
+      brain.ready = true; setBrain("LISTENING");
+      startMicStream();
+      break;
+    }
+    case "audio": {
+      const e = m.audio_event || m;
+      if (e.audio_base_64) playPcm(e.audio_base_64);
+      break;
+    }
+    case "agent_response": {
+      const e = m.agent_response_event || m;
+      if (e.agent_response) caption(e.agent_response);
+      break;
+    }
+    case "agent_response_correction": {
+      const e = m.agent_response_correction_event || m;
+      if (e.corrected_agent_response) caption(e.corrected_agent_response);
+      break;
+    }
+    case "user_transcript": {
+      const e = m.user_transcription_event || m;
+      if (e.user_transcript) { heard(e.user_transcript); if (brain.state !== "SPEAKING") setBrain("THINKING"); }
+      break;
+    }
+    case "interruption": stopPlayback(); break;
+    case "ping": {
+      const e = m.ping_event || {};
+      const pong = () => brainSend({ type:"pong", event_id:e.event_id });
+      e.ping_ms ? setTimeout(pong, e.ping_ms) : pong();
+      break;
+    }
+    case "client_tool_call": handleTool(m.client_tool_call || m); break;
+  }
 }
-function toggleListen(){
-  if (!SR) return;
-  if (listening) { setListen(false); try { rec && rec.stop(); } catch(e) {} return; }
-  rec = new SR(); rec.lang = "en-US"; rec.continuous = true; rec.interimResults = false;
-  rec.onresult = e => { const r = e.results[e.results.length-1]; if (r && r[0]) command(r[0].transcript.toLowerCase().trim()); };
-  rec.onerror = e => { if (e.error === "not-allowed" || e.error === "service-not-allowed") { setListen(false, "BLOCKED"); say("I can't hear you. Microphone access is blocked here."); } };
-  rec.onend = () => { if (listening) { try { rec.start(); } catch(e) {} } };
-  try { rec.start(); setListen(true); say("Listening. Try: scan, next, or show me the santoor."); } catch(e) { setListen(false, "BLOCKED"); }
-}
-function command(t){
-  $("#gesture").textContent = "VOICE";
-  const has = (...w) => w.some(x => t.includes(x));
-  if (has("santoor","santur","dulcimer")) return selectObject(2);
-  if (has("poker","chip","casino")) return selectObject(1);
-  if (has("earth","globe","home","where am i")) return selectObject(3);
-  if (has("core","yourself")) return selectObject(0);
-  if (has("scan","analy")) return startScan();
-  if (has("next")) return selectObject(view.idx+1);
-  if (has("previous","back")) return selectObject(view.idx-1);
-  if (has("reset","center")) return resetView();
-  if (has("bigger","zoom in")) { view.targetScale = clamp(view.targetScale*1.3,.45,2.6); return; }
-  if (has("smaller","zoom out")) { view.targetScale = clamp(view.targetScale/1.3,.45,2.6); return; }
-  if (has("time")) return say("It is " + new Date().toLocaleTimeString([], {hour:"numeric", minute:"2-digit"}) + ".");
-  if (has("hello","hey","hi ")) return say(`Hello, ${OWNER}.`);
-  if (has("farand","thank")) return say("I heard you. My real brain gets connected in the next build.");
+function toolResult(id, result, isError=false){ brainSend({ type:"client_tool_result", tool_call_id:id, result, is_error:isError }); }
+function handleTool(c){
+  const p = c.parameters || {};
+  if (c.tool_name === "control_hud") {
+    hudAction(p.action);
+    if (c.expects_response) toolResult(c.tool_call_id, "Done.");
+  } else if (c.tool_name === "look_at_camera") {
+    if (c.expects_response) toolResult(c.tool_call_id, "Taking the photo now. It arrives as Albert's next message.");
+    takeLook(`Here's the camera photo you asked for${p.reason ? " (" + p.reason + ")" : ""}. What do you think?`, true);
+  } else if (c.expects_response) {
+    toolResult(c.tool_call_id, "That tool isn't available on this display.", true);
+  }
 }
 
-/* ---------------- hand tracking ---------------- */
-const video = $("#video"), skel = $("#skel"), sg = skel.getContext("2d");
-let landmarker = null, handsOn = false, stream = null, lastVideoTime = -1, handsBusy = false;
+function playPcm(str){
+  if (!ac) return;
+  const u = unb64(str), n = u.length >> 1; if (!n) return;
+  const dv = new DataView(u.buffer, u.byteOffset, n*2), f = new Float32Array(n);
+  let sum = 0;
+  for (let i = 0; i < n; i++) { const v = dv.getInt16(i*2, true) / 32768; f[i] = v; sum += v*v; }
+  const buf = ac.createBuffer(1, n, brain.outRate);
+  if (buf.copyToChannel) buf.copyToChannel(f, 0); else buf.getChannelData(0).set(f);
+  const s = ac.createBufferSource(); s.buffer = buf; s.connect(ac.destination);
+  const t = Math.max(ac.currentTime + .05, brain.playT);
+  s.start(t); brain.playT = t + buf.duration;
+  brain.sources.push(s); s.onended = () => { const i = brain.sources.indexOf(s); if (i >= 0) brain.sources.splice(i, 1); };
+  brain.segs.push({ t0:t, t1:t + buf.duration, rms:Math.sqrt(sum/n) });
+  brain.lastAgentAt = performance.now();
+}
+function stopPlayback(){
+  for (const s of brain.sources) { try { s.stop(); } catch(e) {} }
+  brain.sources = []; brain.segs = []; brain.playT = 0;
+}
+function updateSpeaking(){
+  if (!ac) { brain.level *= .9; return; }
+  const now = ac.currentTime;
+  while (brain.segs.length && brain.segs[0].t1 < now) brain.segs.shift();
+  const seg = brain.segs.find(s => s.t0 <= now && now <= s.t1);
+  const target = seg ? Math.min(1, seg.rms*5) : 0;
+  brain.level += (target - brain.level) * .3;
+  if (brain.ready && brain.state !== "LOOKING") {
+    const speaking = brain.playT > now;
+    if (speaking && brain.state !== "SPEAKING") setBrain("SPEAKING");
+    else if (!speaking && brain.state === "SPEAKING") setBrain("LISTENING");
+  }
+}
+
+/* ---------------- the LOOK: camera photo → Farand ---------------- */
+let lookBusy = false;
+async function takeLook(text, fromAgent=false){
+  if (lookBusy) return;
+  if (!brain.ready) { caption("Tap TALK first, then I can look and tell you what I think."); return; }
+  lookBusy = true;
+  try {
+    if (!stream) { await toggleHands(true); await sleep(700); }
+    if (!stream || !video.videoWidth) {
+      caption("I need the camera on to see you. Tap HANDS.");
+      if (fromAgent) brainSend({ type:"user_message", text:"[HUD] The camera is off, so the photo didn't work. Tell Albert to tap HANDS." });
+      return;
+    }
+    setBrain("LOOKING");
+    const cnt = $("#count"); cnt.hidden = false;
+    for (const n of ["3","2","1"]) { cnt.textContent = n; beep(660,.05,"sine",.04); await sleep(fromAgent ? 420 : 600); }
+    cnt.hidden = true;
+    const blob = await snapshot();
+    const fl = $("#flash"); fl.style.transition = "none"; fl.style.opacity = .85; void fl.offsetWidth; fl.style.transition = "opacity .5s"; fl.style.opacity = 0;
+    beep(1800,.03,"square",.03); beep(900,.06,"square",.025,.04);
+    showCapture(blob);
+    const fd = new FormData(); fd.append("file", blob, "farand-look.jpg");
+    const r = await fetch(`${EL_API}/${encodeURIComponent(brain.convId)}/files`, { method:"POST", body:fd });
+    if (!r.ok) throw new Error("upload failed " + r.status);
+    const j = await r.json();
+    if (!j.file_id) throw new Error("no file id");
+    brainSend({ type:"multimodal_message", text:{ type:"user_message", text }, file:{ type:"file_input", file_id:j.file_id } });
+    setBrain("THINKING");
+  } catch(err) {
+    console.warn(err);
+    setBrain("LISTENING");
+    caption("The photo didn't reach me. Check the internet and try LOOK again.");
+    brainSend({ type:"user_message", text:"[HUD] The camera photo failed to upload. Tell Albert in one short line." });
+  } finally {
+    lookBusy = false; $("#count").hidden = true;
+  }
+}
+function showCapture(blob){
+  const img = $("#lookImg"); try { if (img.dataset.url) URL.revokeObjectURL(img.dataset.url); } catch(e) {}
+  const url = URL.createObjectURL(blob); img.src = url; img.dataset.url = url;
+  $("#lookFig").hidden = false; $("#lookHead").hidden = false;
+  $("#lookCap").textContent = "CAPTURE · " + new Date().toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" });
+}
+function snapshot(){
+  const vw = video.videoWidth, vh = video.videoHeight, rot = camRot, side = rot % 180 ? [vh, vw] : [vw, vh];
+  const k = Math.min(1, 1024 / Math.max(side[0], side[1]));
+  const c = document.createElement("canvas"); c.width = Math.round(side[0]*k); c.height = Math.round(side[1]*k);
+  drawOriented(c.getContext("2d"), c.width, c.height, rot);
+  return new Promise((res, rej) => c.toBlob(b => b ? res(b) : rej(new Error("snapshot failed")), "image/jpeg", .85));
+}
+
+/* ---------------- camera + hand tracking ---------------- */
+const video = $("#video"), det = $("#det"), dg = det.getContext("2d", { willReadFrequently:false }), skel = $("#skel"), sg = skel.getContext("2d");
+let landmarker = null, forceCPU = false, handsOn = false, stream = null, lastVideoTime = -1, handsBusy = false;
+let lastFrameAt = 0, detectErrors = 0;
+let camRot = store.get("farand.camRot", 0);
+let autoFlipped = store.get("farand.autoFlipped", false), downCount = 0;
 const hands = new Map();
 const two = { active:false, d0:1, s0:1 };
 const BONES = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]];
 let gestureLabel = "STANDBY";
+setRow("#stCam", camRot + "°");
 
-function setHands(label, warn=false){ const b = $("#stHands"); b.textContent = label; b.classList.toggle("warn", warn); }
+function setHands(label, warn=false){ setRow("#stHands", label, warn); }
+function setRot(r, note){
+  camRot = ((r % 360) + 360) % 360; store.set("farand.camRot", camRot);
+  setRow("#stCam", camRot + "°"); hands.clear(); downCount = 0;
+  if (note) caption(note);
+}
+function drawOriented(ctx, cw, ch, rot){
+  const vw = video.videoWidth, vh = video.videoHeight; if (!vw) return;
+  ctx.save(); ctx.translate(cw/2, ch/2); ctx.rotate(rot*Math.PI/180);
+  const [dw, dh] = rot % 180 ? [ch, cw] : [cw, ch];
+  ctx.drawImage(video, -dw/2, -dh/2, dw, dh); ctx.restore();
+}
+function sizeDet(){
+  const vw = video.videoWidth, vh = video.videoHeight; if (!vw) return false;
+  const [w, h] = camRot % 180 ? [vh, vw] : [vw, vh], k = 512 / Math.max(w, h);
+  const tw = Math.round(w*k), th = Math.round(h*k);
+  if (det.width !== tw || det.height !== th) { det.width = tw; det.height = th; }
+  return true;
+}
 
+async function openCamera(){
+  stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:"user", width:{ideal:1280}, height:{ideal:720} }, audio:false });
+  video.srcObject = stream; await video.play().catch(() => {});
+  const t = stream.getVideoTracks()[0];
+  if (t) { t.onended = () => { if (handsOn) restartCamera(); }; }
+  lastFrameAt = performance.now();
+}
+async function restartCamera(){
+  if (!handsOn) return;
+  setHands("RESTARTING", true);
+  try { if (stream) stream.getTracks().forEach(t => t.stop()); } catch(e) {}
+  stream = null;
+  try { await openCamera(); setHands("TRACKING"); } catch(e) { setHands("CAMERA LOST", true); }
+}
+async function loadLandmarker(){
+  const mp = await import(MP_URL);
+  const files = await mp.FilesetResolver.forVisionTasks(MP_WASM);
+  const opts = d => ({ baseOptions:{ modelAssetPath:HAND_MODEL, delegate:d }, runningMode:"VIDEO", numHands:2,
+                       minHandDetectionConfidence:.6, minHandPresenceConfidence:.5, minTrackingConfidence:.5 });
+  if (!forceCPU) { try { return await mp.HandLandmarker.createFromOptions(files, opts("GPU")); } catch(e) {} }
+  return await mp.HandLandmarker.createFromOptions(files, opts("CPU"));
+}
 async function toggleHands(quiet=false){
   if (handsOn || stream) { stopHands(); return; }
   if (handsBusy) return;
@@ -475,33 +743,26 @@ async function toggleHands(quiet=false){
   try {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error("no-camera-api");
     setHands("STARTING");
-    stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:"user", width:{ideal:640}, height:{ideal:480} }, audio:false });
-    video.srcObject = stream; await video.play().catch(() => {});
+    await openCamera();
     $("#cam").hidden = false; $("#bHands").classList.add("on");
   } catch(err) {
     stream = null; handsBusy = false;
     setHands("NO CAMERA", true);
-    if (!quiet) say("I can't see you from here. Open me from my own web address and allow camera access.");
+    if (!quiet) say("I can't see you. Allow the camera for this site and tap HANDS again.");
     return;
   }
+  handsOn = true;
   if (!landmarker) {
     setHands("LOADING");
-    try {
-      const mp = await import(MP_URL);
-      const files = await mp.FilesetResolver.forVisionTasks(MP_WASM);
-      const opts = d => ({ baseOptions:{ modelAssetPath:HAND_MODEL, delegate:d }, runningMode:"VIDEO", numHands:2,
-                           minHandDetectionConfidence:.6, minHandPresenceConfidence:.5, minTrackingConfidence:.5 });
-      try { landmarker = await mp.HandLandmarker.createFromOptions(files, opts("GPU")); }
-      catch(e) { landmarker = await mp.HandLandmarker.createFromOptions(files, opts("CPU")); }
-    } catch(err) {
+    try { landmarker = await loadLandmarker(); }
+    catch(err) {
       console.warn("Hand model failed", err);
-      handsBusy = false; stopHands(); setHands("MODEL ERROR", true);
-      say("My vision model did not load. Check the internet connection and try again.");
+      handsBusy = false; setHands("MODEL ERROR", true);   // camera stays on so LOOK still works
+      say("My hand-tracking model didn't load. I can still see you for LOOK. Reload the page to try hands again.");
       return;
     }
   }
-  handsBusy = false; handsOn = true; setHands("TRACKING");
-  say("Hand control online. Pinch to grab. Hold an open palm to scan.");
+  handsBusy = false; setHands("TRACKING");
 }
 function stopHands(){
   handsOn = false;
@@ -509,10 +770,27 @@ function stopHands(){
   stream = null; video.srcObject = null; hands.clear();
   $("#cam").hidden = true; $("#bHands").classList.remove("on"); setHands("OFF");
 }
+// keep the camera alive: iPad pauses it when another app becomes active
+setInterval(() => {
+  if (!handsOn || !stream) return;
+  const t = stream.getVideoTracks()[0];
+  if (!t || t.readyState === "ended") { restartCamera(); return; }
+  if (video.paused) video.play().catch(() => {});
+  const stale = performance.now() - lastFrameAt > 2000;
+  if (t.muted || stale) { setHands("PAUSED", true); gestureLabel = "TAP FARAND"; if (performance.now() - lastFrameAt > 6000) restartCamera(); }
+  else if ($("#stHands").textContent !== "TRACKING" && landmarker) setHands("TRACKING");
+}, 1000);
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) return;
+  if (stream) video.play().catch(() => {});
+  if (ac && ac.state !== "running") ac.resume().catch(() => {});
+});
+addEventListener("focus", () => { if (stream) video.play().catch(() => {}); if (ac) ac.resume().catch(() => {}); });
 
-function processHands(list, now){
-  const aspect = (video.videoWidth && video.videoHeight) ? video.videoWidth/video.videoHeight : 4/3;
+function processHands(list, now, aspect){
+  aspect = aspect || (det.width && det.height ? det.width/det.height : 4/3);
   const seen = new Set();
+  let down = false;
   for (const { lm, side } of list) {
     seen.add(side);
     let s = hands.get(side);
@@ -525,6 +803,7 @@ function processHands(list, now){
     s.pinched = was ? pr < .5 : pr < .3;
     const ext = [[8,6],[12,10],[16,14],[20,18]].map(([t,p]) => d(lm[t],lm[0]) > d(lm[p],lm[0])*1.12);
     s.open = ext.every(Boolean) && !s.pinched && pr > .55;
+    if (lm[12].y > lm[0].y + .06 && lm[9].y > lm[0].y) down = true;   // fingers pointing down the frame
     const px = (lm[4].x + lm[8].x)/2, py = (lm[4].y + lm[8].y)/2;
     const tx = clamp(.5 - (px-.5)*1.6, 0, 1)*W, ty = clamp(.5 + (py-.5)*1.6, 0, 1)*H;
     if (!s.init) { s.x = tx; s.y = ty; s.init = true; } else { s.x += (tx-s.x)*.45; s.y += (ty-s.y)*.45; }
@@ -533,6 +812,15 @@ function processHands(list, now){
     s.hist.push({ t:now, x:s.x, y:s.y }); while (s.hist.length && now - s.hist[0].t > 320) s.hist.shift();
   }
   for (const [k,s] of hands) { if (!seen.has(k)) { s.visible = false; s.pinched = false; if (now - s.seen > 400) hands.delete(k); } }
+  // a camera that sees you upside down shows raised hands with fingers pointing down
+  if (list.length) {
+    downCount = down ? downCount + 1 : Math.max(0, downCount - 3);
+    if (downCount > 40 && !autoFlipped) {
+      autoFlipped = true; store.set("farand.autoFlipped", true);
+      setRot(camRot + 180, "You looked upside down, so I flipped the camera. Tap ROTATE on the camera box if it's still wrong.");
+      return;
+    }
+  }
   gestures(now);
 }
 
@@ -557,21 +845,18 @@ function gestures(now){
 
   for (const s of vis) {
     if (s.pinchStart) {
-      // test the raw pinch point first: the smoothed cursor lags a frame behind the fingers
       const el = hitButton(s.rx, s.ry) || hitButton(s.x, s.y);
       if (el) { pressButton(el); s.consumed = true; }
       else { s.dragging = true; s.lx = s.x; s.ly = s.y; beep(660,.035,"triangle",.035); }
     }
     if (s.pinched && s.dragging) {
       const dx = s.x - s.lx, dy = s.y - s.ly;
-      view.yaw += dx*.009; view.pitch = clamp(view.pitch + dy*.007, -1.4, 1.4);
-      view.vyaw = dx*.009; view.vpitch = dy*.007;
+      rotateBy(dx, dy);
       s.lx = s.x; s.ly = s.y; gestureLabel = "ROTATE"; interact();
     }
     if (!s.pinched) { s.dragging = false; s.consumed = false; }
     if (s.pinched && s.consumed) gestureLabel = "PRESS";
 
-    // swipe: fast horizontal move with a non-pinched hand that has been visible a moment
     if (!s.pinched && s.hist.length > 3 && now - s.first > 350 && now > swipeCool) {
       const h0 = s.hist[0], h1 = s.hist[s.hist.length-1], dx = h1.x - h0.x, dy = h1.y - h0.y;
       if (Math.abs(dx) > W*.24 && Math.abs(dy) < H*.16) {
@@ -580,7 +865,6 @@ function gestures(now){
         gestureLabel = dx < 0 ? "SWIPE ←" : "SWIPE →"; interact(); continue;
       }
     }
-    // open palm held still → scan
     if (s.open) {
       const h0 = s.hist[0], h1 = s.hist[s.hist.length-1];
       const moved = h0 ? Math.hypot(h1.x-h0.x, h1.y-h0.y) : 0;
@@ -591,12 +875,15 @@ function gestures(now){
     } else { s.hold = 0; s.latch = false; }
   }
 }
+function rotateBy(dx, dy){
+  view.yaw += dx*.007; view.pitch = clamp(view.pitch + dy*.004, -1.0, 1.0);
+  view.vyaw = dx*.007; view.vpitch = dy*.004;
+}
 function hitButton(x, y){
-  // forgiving hit area: air-pinching is less precise than a finger on glass
   for (const [dx, dy] of [[0,0],[14,0],[-14,0],[0,12],[0,-12]]) {
     const el = document.elementFromPoint(x + dx, y + dy);
     const b = el && el.closest ? el.closest("[data-act]") : null;
-    if (b && !b.hidden) return b;
+    if (b && !b.hidden && !b.disabled) return b;
   }
   return null;
 }
@@ -608,9 +895,8 @@ function pressButton(el){
 function drawSkeleton(list){
   const w = skel.width = skel.clientWidth*DPR, h = skel.height = skel.clientHeight*DPR;
   sg.clearRect(0,0,w,h);
-  if (!video.videoWidth) return;
-  // match object-fit: cover
-  const vr = video.videoWidth/video.videoHeight, cr = w/h;
+  if (!det.width) return;
+  const vr = det.width/det.height, cr = w/h;
   let sw = w, sh = h, ox = 0, oy = 0;
   if (vr > cr) { sw = h*vr; ox = (w-sw)/2; } else { sh = w/vr; oy = (h-sh)/2; }
   sg.lineWidth = 1.5*DPR; sg.strokeStyle = C.holo; sg.fillStyle = C.ice;
@@ -622,16 +908,13 @@ function drawSkeleton(list){
   }
 }
 
-/* ---------------- pointer / keyboard fallback ---------------- */
+/* ---------------- pointer / keyboard ---------------- */
 const pointers = new Map();
 let pinch0 = null;
 holo.addEventListener("pointerdown", e => { holo.setPointerCapture(e.pointerId); pointers.set(e.pointerId, { x:e.clientX, y:e.clientY }); interact(); });
 holo.addEventListener("pointermove", e => {
   const p = pointers.get(e.pointerId); if (!p) return;
-  if (pointers.size === 1) {
-    const dx = e.clientX - p.x, dy = e.clientY - p.y;
-    view.yaw += dx*.009; view.pitch = clamp(view.pitch + dy*.007, -1.4, 1.4); view.vyaw = dx*.009; view.vpitch = dy*.007;
-  }
+  if (pointers.size === 1) rotateBy(e.clientX - p.x, e.clientY - p.y);
   p.x = e.clientX; p.y = e.clientY;
   if (pointers.size === 2) {
     const [a,b] = [...pointers.values()], d = Math.hypot(a.x-b.x, a.y-b.y);
@@ -652,31 +935,33 @@ addEventListener("keydown", e => {
   else if (k === "arrowleft" || k === "p") selectObject(view.idx-1);
   else if (k === "r") resetView();
   else if (k === "h") toggleHands();
-  else if (k === "v") toggleVoice();
-  else if (k === "l") toggleListen();
+  else if (k === "t") toggleBrain();
+  else if (k === "l") act("look");
+  else if (k === "m") toggleMute();
+  else if (k === "f") setRot(camRot + 90);
 });
 document.querySelectorAll("[data-act]").forEach(b => b.addEventListener("click", () => act(b.dataset.act)));
+$("#bRot").addEventListener("click", () => setRot(camRot + 90, "Camera turned to " + ((camRot + 90) % 360) + " degrees."));
 function act(a){
+  ensureAudio();
   if (a === "prev") selectObject(view.idx-1);
   else if (a === "next") selectObject(view.idx+1);
   else if (a === "scan") startScan();
   else if (a === "reset") resetView();
   else if (a === "hands") toggleHands();
-  else if (a === "voice") toggleVoice();
-  else if (a === "listen") toggleListen();
+  else if (a === "talk") toggleBrain();
+  else if (a === "mute") toggleMute();
+  else if (a === "look") takeLook("How do I look? Give me your honest take on this outfit.");
 }
 
 /* ---------------- boot ---------------- */
 $("#bWake").addEventListener("click", () => {
-  try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+  ensureAudio();
   $("#boot").hidden = true;
   beep(330,.25,"sine",.05); beep(495,.25,"sine",.04,.12); beep(660,.4,"sine",.04,.24);
-  const h = new Date().getHours();
-  const part = h < 5 ? "Working late" : h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
-  voice = pickVoice();
-  say(`${part}, ${OWNER}. Farand is online. Raise a hand when you're ready.`);
   view.build = 0;
   toggleHands(true);
+  startBrain();
 });
 
 /* ---------------- render loop ---------------- */
@@ -685,24 +970,37 @@ function frame(now){
   const dt = clamp((now - last)/1000, 0, .05); last = now;
   fpsAcc += dt; fpsN++; if (now - fpsT > 500) { $("#stFps").textContent = Math.round(fpsN/fpsAcc) + " FPS"; fpsAcc = 0; fpsN = 0; fpsT = now; }
 
-  if (handsOn && landmarker && video.readyState >= 2 && video.currentTime !== lastVideoTime) {
-    lastVideoTime = video.currentTime;
-    try {
-      const r = landmarker.detectForVideo(video, now);
-      const list = (r.landmarks || []).map((lm, i) => ({ lm, side: (r.handedness && r.handedness[i] && r.handedness[i][0] && r.handedness[i][0].categoryName) || ("H"+i) }));
-      // two hands reported with the same side label: keep them apart
-      if (list.length === 2 && list[0].side === list[1].side) list[1].side += "2";
-      processHands(list, now);
-      drawSkeleton(r.landmarks || []);
-    } catch(e) { console.warn(e); }
+  if (handsOn && video.readyState >= 2 && video.currentTime !== lastVideoTime && sizeDet()) {
+    lastVideoTime = video.currentTime; lastFrameAt = now;
+    drawOriented(dg, det.width, det.height, camRot);
+    if (landmarker) {
+      try {
+        const r = landmarker.detectForVideo(det, now);
+        detectErrors = 0;
+        const list = (r.landmarks || []).map((lm, i) => ({ lm, side: (r.handedness && r.handedness[i] && r.handedness[i][0] && r.handedness[i][0].categoryName) || ("H"+i) }));
+        if (list.length === 2 && list[0].side === list[1].side) list[1].side += "2";
+        processHands(list, now);
+        drawSkeleton(r.landmarks || []);
+      } catch(e) {
+        console.warn(e);
+        if (++detectErrors > 8 && !forceCPU) {           // GPU path keeps failing: rebuild on CPU
+          forceCPU = true; const old = landmarker; landmarker = null; try { old.close && old.close(); } catch(_) {}
+          setHands("RELOADING", true);
+          loadLandmarker().then(l => { landmarker = l; setHands("TRACKING"); }).catch(() => setHands("MODEL ERROR", true));
+        }
+      }
+    }
   }
 
-  // motion
+  updateSpeaking();
+  micLevel *= .9;
+
   const idle = now - view.lastInteract > 3500;
   const dragging = pointers.size > 0 || [...hands.values()].some(s => s.dragging);
   if (!dragging) {
-    view.yaw += view.vyaw; view.pitch = clamp(view.pitch + view.vpitch, -1.4, 1.4);
-    view.vyaw *= .93; view.vpitch *= .9;
+    view.yaw += view.vyaw; view.pitch = clamp(view.pitch + view.vpitch, -1.0, 1.0);
+    view.vyaw *= .92; view.vpitch *= .85;
+    if (now - view.lastInteract > 1200) view.pitch += (OBJECTS[view.idx].pose[1] - view.pitch) * Math.min(1, dt*1.2);   // level itself
     if (idle) view.yaw += dt * (reduced ? .05 : .22);
   }
   view.scale = lerp(view.scale, view.targetScale, 1 - Math.pow(.001, dt));
@@ -720,13 +1018,14 @@ function frame(now){
   requestAnimationFrame(frame);
 }
 
+const easeOut = x => 1 - Math.pow(1-x, 3);
 function draw(now){
   g.setTransform(DPR,0,0,DPR,0,0);
   g.clearRect(0,0,W,H);
   g.globalCompositeOperation = "lighter";
   g.lineCap = "round";
   const cx = W/2, cy = H*.5, R0 = Math.min(W*.34, H*.27);
-  const S = R0 * view.scale;
+  const S = R0 * view.scale * (1 + brain.level*.04);
   const o = OBJECTS[view.idx], m = o.m;
   const cyw = Math.cos(view.yaw), syw = Math.sin(view.yaw), cp = Math.cos(view.pitch), sp = Math.sin(view.pitch), cam = 4.2;
   const P = new Float32Array(m.v.length*3);
@@ -737,10 +1036,8 @@ function draw(now){
     const f = cam/(cam + z2);
     P[i*3] = cx + x1*f*S; P[i*3+1] = cy - y2*f*S; P[i*3+2] = z2;
   }
-  // scan plane in rotated space (top → bottom)
   const plane = scanS.active ? lerp(1.35, -1.35, scanS.t) : null;
   const visibleEdges = Math.floor(m.e.length * easeOut(view.build));
-  // buckets: [depth 0..2] x [normal, accent1(ice), accent2(amber)] + scan hot
   const paths = {};
   const pathFor = k => paths[k] || (paths[k] = new Path2D());
   for (let n = 0; n < visibleEdges; n++) {
@@ -755,7 +1052,7 @@ function draw(now){
   }
   const depthA = [1, .62, .3];
   for (const key in paths) {
-    let col = C.holo, a = .9, glow = .07;
+    let col = C.holo, a = .9, glow = .07 + brain.level*.08;
     if (key === "hot") { col = C.ice; a = 1; glow = .22; }
     else if (key === "cold") { col = C.holo; a = .14; glow = .02; }
     else {
@@ -767,15 +1064,12 @@ function draw(now){
     g.strokeStyle = rgba(col, a); g.lineWidth = key === "hot" ? 2.2 : 1.3; g.stroke(paths[key]);
   }
 
-  // fabrication ring while building
   if (view.build < 1) {
     g.strokeStyle = rgba(C.ice, .7); g.lineWidth = 2;
     g.beginPath(); g.arc(cx, cy, R0*1.04, -Math.PI/2, -Math.PI/2 + TAU*view.build); g.stroke();
   }
-
-  // scan line
   if (plane !== null) {
-    const sy = cy - plane*S*(cam/(cam)), half = R0*1.25;
+    const sy = cy - plane*S, half = R0*1.25;
     const grd = g.createLinearGradient(cx-half, 0, cx+half, 0);
     grd.addColorStop(0, rgba(C.ice,0)); grd.addColorStop(.5, rgba(C.ice,.95)); grd.addColorStop(1, rgba(C.ice,0));
     g.strokeStyle = grd; g.lineWidth = 2; g.beginPath(); g.moveTo(cx-half, sy); g.lineTo(cx+half, sy); g.stroke();
@@ -784,11 +1078,24 @@ function draw(now){
     g.fillStyle = band; g.fillRect(cx-half, sy-40, half*2, 40);
   }
 
-  // reticle rings
+  // voice ring: breathes with Farand's speech, ticks with the mic
   const t = now/1000, spin = reduced ? 0 : t;
-  g.strokeStyle = rgba(C.holo, .22); g.lineWidth = 1;
-  g.beginPath(); g.arc(cx, cy, R0*1.16, 0, TAU); g.stroke();
-  g.strokeStyle = rgba(C.holo, .35); g.beginPath();
+  if (brain.ready) {
+    const lv = brain.level, rr = R0*1.16;
+    g.strokeStyle = rgba(C.ice, .15 + lv*.6); g.lineWidth = 1 + lv*4;
+    g.beginPath(); g.arc(cx, cy, rr + lv*10, 0, TAU); g.stroke();
+    g.strokeStyle = rgba(C.holo, .25 + micLevel*.6); g.lineWidth = 2; g.beginPath();
+    for (let i = 0; i < 64; i++) {
+      const a = i/64*TAU - Math.PI/2, amp = (micLevel*16) * (0.5 + 0.5*Math.sin(i*1.7 + t*9));
+      const r1 = R0*1.46, r2 = r1 + 2 + amp;
+      g.moveTo(cx + r1*Math.cos(a), cy + r1*Math.sin(a)); g.lineTo(cx + r2*Math.cos(a), cy + r2*Math.sin(a));
+    }
+    g.stroke();
+  } else {
+    g.strokeStyle = rgba(C.holo, .22); g.lineWidth = 1;
+    g.beginPath(); g.arc(cx, cy, R0*1.16, 0, TAU); g.stroke();
+  }
+  g.strokeStyle = rgba(C.holo, .35); g.lineWidth = 1; g.beginPath();
   for (let i = 0; i < 120; i++) {
     const a = i/120*TAU + spin*.05, r1 = R0*1.22, r2 = r1 + (i%10 === 0 ? 12 : 5);
     g.moveTo(cx + r1*Math.cos(a), cy + r1*Math.sin(a)); g.lineTo(cx + r2*Math.cos(a), cy + r2*Math.sin(a));
@@ -802,25 +1109,24 @@ function draw(now){
   g.lineWidth = 1.5; g.strokeStyle = rgba(C.amber, .45);
   g.beginPath(); g.arc(cx, cy, R0*1.4, spin*.3, spin*.3 + .25); g.stroke();
 
-  // readouts
   g.globalCompositeOperation = "source-over";
   g.textAlign = "center";
+  const label = (txt, size, alpha, y) => { g.fillStyle = rgba(C.ice, alpha); g.font = `600 ${size}px "Chakra Petch", sans-serif`; g.fillText(txt, cx, y); };
   if (scanS.active) {
-    g.fillStyle = rgba(C.ice, .95); g.font = `600 13px "Chakra Petch", sans-serif`;
-    g.fillText("S C A N N I N G", cx, cy - R0*1.5);
-    g.font = `600 28px "Chakra Petch", sans-serif`;
-    g.fillText(Math.min(100, Math.round(scanS.t*100)) + "%", cx, cy - R0*1.5 + 32);
+    label("S C A N N I N G", 13, .95, cy - R0*1.5);
+    label(Math.min(100, Math.round(scanS.t*100)) + "%", 28, .95, cy - R0*1.5 + 32);
     g.strokeStyle = rgba(C.ice, .9); g.lineWidth = 2;
     g.beginPath(); g.arc(cx, cy, R0*1.1, -Math.PI/2, -Math.PI/2 + TAU*scanS.t); g.stroke();
   } else if (view.build < 1) {
-    g.fillStyle = rgba(C.ice, .8); g.font = `600 12px "Chakra Petch", sans-serif`;
-    g.fillText("F A B R I C A T I N G   " + Math.round(view.build*100) + "%", cx, cy - R0*1.5);
+    label("F A B R I C A T I N G   " + Math.round(view.build*100) + "%", 12, .8, cy - R0*1.5);
+  } else if (brain.state === "LOOKING") {
+    label("V I S U A L   C A P T U R E", 12, .9, cy - R0*1.5);
+  } else if (brain.state === "THINKING") {
+    label("T H I N K I N G" + ".".repeat(1 + Math.floor(t*3) % 3), 12, .75, cy - R0*1.5);
   } else if (scanS.done) {
-    g.fillStyle = rgba(C.holo, .85); g.font = `600 12px "Chakra Petch", sans-serif`;
-    g.fillText("S C A N   C O M P L E T E", cx, cy - R0*1.5);
+    label("S C A N   C O M P L E T E", 12, .85, cy - R0*1.5);
   }
 }
-const easeOut = x => 1 - Math.pow(1-x, 3);
 
 function drawFx(now){
   fg.setTransform(DPR,0,0,DPR,0,0);
@@ -829,14 +1135,12 @@ function drawFx(now){
   fg.globalCompositeOperation = "lighter";
   for (const s of hands.values()) {
     if (!s.visible || !s.lm) continue;
-    // big ghost skeleton, same mapping as the cursor
     const map = p => [clamp(.5 - (p.x-.5)*1.6, 0, 1)*W, clamp(.5 + (p.y-.5)*1.6, 0, 1)*H];
     fg.strokeStyle = rgba(C.holo, .18); fg.lineWidth = 2; fg.beginPath();
     for (const [a,b] of BONES) { const A = map(s.lm[a]), B = map(s.lm[b]); fg.moveTo(A[0],A[1]); fg.lineTo(B[0],B[1]); }
     fg.stroke();
     fg.fillStyle = rgba(C.holo, .35);
     for (const i of [4,8,12,16,20]) { const [x,y] = map(s.lm[i]); fg.beginPath(); fg.arc(x, y, 3, 0, TAU); fg.fill(); }
-    // cursor
     const { x, y } = s;
     fg.strokeStyle = rgba(s.pinched ? C.ice : C.holo, .95); fg.lineWidth = 1.5;
     fg.beginPath(); fg.arc(x, y, s.pinched ? 10 : 18, 0, TAU); fg.stroke();
@@ -867,8 +1171,8 @@ selectObject(0, false);
 view.build = 1;
 requestAnimationFrame(frame);
 
-// test hook: feed synthetic landmarks [{lm:[21 points], side:"Left"}]
-window.farand = { feed: (list) => processHands(list, performance.now()), select: selectObject, scan: startScan, view, hands };
+// test hook
+window.farand = { feed: (list, aspect) => processHands(list, performance.now(), aspect), select: selectObject, scan: startScan, view, hands, brain, onBrainMessage, hudAction, get camRot(){ return camRot; } };
 </script>
 
 </body>
