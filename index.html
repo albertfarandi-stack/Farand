@@ -119,6 +119,21 @@ canvas.layer{position:fixed;inset:0;display:block}
 .boot p{margin:0;font-family:var(--font-m);font-size:12px;letter-spacing:.2em;color:var(--holo-soft);max-width:46ch;line-height:1.7}
 .boot .btn{font-size:15px;padding:18px 34px}
 
+.modal{position:fixed;inset:0;z-index:12;display:grid;place-items:center;background:rgba(2,7,11,.82);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.sheet{width:min(520px,100%);max-height:calc(100% - 32px);overflow:auto;background:var(--deep);border:1px solid var(--holo-soft);padding:24px;
+  clip-path:polygon(0 0,calc(100% - 18px) 0,100% 18px,100% 100%,18px 100%,0 calc(100% - 18px));color:var(--ice);font-size:15px;line-height:1.55;
+  -webkit-user-select:text;user-select:text;touch-action:auto}
+.sheet h2{margin:0 0 10px;font-size:18px;letter-spacing:.3em;font-weight:600}
+.sheet p{margin:0 0 10px}.sheet ol{margin:0 0 16px;padding-left:22px}
+.sheet a{color:var(--holo)}
+.sheet label{display:block;font:11px var(--font-m);letter-spacing:.24em;color:var(--holo-soft);margin:14px 0 6px}
+.sheet input,.sheet select{width:100%;font:15px var(--font-m);color:var(--ice);background:var(--void);border:1px solid var(--holo-soft);padding:12px;border-radius:0;
+  -webkit-user-select:text;user-select:text}
+.sheet input:focus-visible,.sheet select:focus-visible{outline:2px solid var(--ice);outline-offset:1px}
+.sheet .note{font:12px/1.6 var(--font-m);color:var(--holo-soft);margin-top:14px}
+.sheet .warnline{color:var(--amber);min-height:1em}
+.sheet-btns{display:flex;justify-content:flex-end;gap:12px;margin-top:8px}
 @media (max-width:860px){
   .hud{grid-template-columns:1fr}
   .panel{display:none}
@@ -135,7 +150,7 @@ canvas.layer{position:fixed;inset:0;display:block}
 
 <div class="hud">
   <header class="top">
-    <div class="brand"><span class="mark" aria-hidden="true"></span><div>FARAND<small>PERSONAL SYSTEM · BUILD 0.2</small></div></div>
+    <div class="brand"><span class="mark" aria-hidden="true"></span><div>FARAND<small>PERSONAL SYSTEM · BUILD 0.3</small></div></div>
     <div class="clock"><span id="time">--:--:--</span><span id="date">---</span></div>
   </header>
 
@@ -143,18 +158,20 @@ canvas.layer{position:fixed;inset:0;display:block}
     <h3>SYSTEM</h3>
     <div class="rows">
       <div class="row"><span>BRAIN</span><b id="stBrain">OFF</b></div>
+      <div class="row"><span>MODEL</span><b id="stModel">—</b></div>
+      <div class="row"><span>VOICE</span><b id="stVoice">OFF</b></div>
       <div class="row"><span>MIC</span><b id="stMic">OFF</b></div>
       <div class="row"><span>HANDS</span><b id="stHands">OFF</b></div>
       <div class="row"><span>CAMERA</span><b id="stCam">0°</b></div>
       <div class="row"><span>FRAME</span><b id="stFps">-- FPS</b></div>
       <div class="row"><span>AZ / EL</span><b id="stOrient">0° / 0°</b></div>
-      <div class="row"><span>SCALE</span><b id="stScale">×1.00</b></div>
     </div>
     <h3>GESTURE</h3>
     <div id="gesture">STANDBY</div>
     <h3>CONTROLS</h3>
     <div class="legend">
-      <div><i>JUST TALK</i>Farand listens all the time</div>
+      <div><i>JUST TALK</i>Wait for him to finish, then speak</div>
+      <div><i>TAP TALK</i>Cut him off mid-sentence</div>
       <div><i>PINCH+DRAG</i>Rotate the hologram</div>
       <div><i>TWO PINCHES</i>Pull apart to scale</div>
       <div><i>OPEN PALM</i>Hold still to scan</div>
@@ -182,7 +199,7 @@ canvas.layer{position:fixed;inset:0;display:block}
     <button class="btn" id="bHands" data-act="hands"><span>HANDS</span></button>
     <button class="btn primary" id="bTalk" data-act="talk"><span>TALK</span></button>
     <button class="btn" id="bLook" data-act="look"><span>LOOK</span></button>
-    <button class="btn" id="bMute" data-act="mute"><span>MUTE</span></button>
+    <button class="btn" id="bSetup" data-act="setup"><span>SETUP</span></button>
   </nav>
 </div>
 
@@ -197,20 +214,39 @@ canvas.layer{position:fixed;inset:0;display:block}
 <div id="flash"></div>
 <canvas id="fx" class="layer"></canvas>
 
+<div class="modal" id="setup" hidden role="dialog" aria-modal="true" aria-labelledby="setupTitle">
+  <div class="sheet">
+    <h2 id="setupTitle">FARAND SETUP</h2>
+    <p>Farand thinks with Google Gemini. A free key takes about a minute:</p>
+    <ol>
+      <li>Open <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> and sign in with Google.</li>
+      <li>Tap <b>Create API key</b>, then copy it.</li>
+      <li>Come back and paste it below.</li>
+    </ol>
+    <label for="keyIn">GEMINI API KEY</label>
+    <input id="keyIn" type="text" inputmode="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="AIza…">
+    <label for="voiceSel">VOICE</label>
+    <select id="voiceSel"></select>
+    <p class="note">The key is saved only on this iPad. On Google's free tier, what you send may be used to improve Google's products. The voice downloads once (about 90 MB) and then runs on the iPad.</p>
+    <p class="note warnline" id="setupMsg" aria-live="polite"></p>
+    <div class="sheet-btns">
+      <button class="btn" id="bSetupCancel" type="button"><span>CANCEL</span></button>
+      <button class="btn primary" id="bSetupSave" type="button"><span>SAVE</span></button>
+    </div>
+  </div>
+</div>
+
 <div class="boot" id="boot">
   <div class="boot-inner">
     <span class="mark" style="width:54px;height:54px" aria-hidden="true"></span>
     <h1>FARAND</h1>
-    <p>Allow the camera and microphone. Hand tracking stays on this iPad. Farand only gets a photo when you ask him to look.</p>
+    <p>Allow the camera and microphone. Hand tracking and Farand's voice run on this iPad. Photos go to his brain only when you ask him to look.</p>
     <button class="btn primary" id="bWake"><span>WAKE FARAND</span></button>
   </div>
 </div>
 
 <script type="module">
 /* ---------------- config ---------------- */
-const AGENT_ID = "agent_4501m5ga9eg4fpx8xcrxmqmk196q";          // ElevenLabs agent "Farand" (public, no key needed)
-const EL_WS = "wss://api.elevenlabs.io/v1/convai/conversation";
-const EL_API = "https://api.elevenlabs.io/v1/convai/conversations";
 const MP_VER = "0.10.14";
 const MP_URL = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VER}/vision_bundle.mjs`;
 const MP_WASM = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VER}/wasm`;
@@ -401,8 +437,8 @@ function finishScan(){
   });
   void el.offsetWidth; el.className = "rows show";
   beep(880,.08,"sine",.05); beep(1320,.12,"sine",.04,.09);
-  if (brain.ready) brainSend({ type:"user_message", text:`[HUD] Albert just scanned the ${o.name.toLowerCase()} hologram. Readout: ${readout.join("; ")}.` });
-  else caption(o.quip);
+  if (cfg.key && ears.on) askBrain([{ text:`[HUD] Albert just scanned the ${o.name.toLowerCase()} hologram. Readout: ${readout.join("; ")}.` }]);
+  else { caption(o.quip); enqueueSpeech(o.quip); }
 }
 function resetView(){
   const o = OBJECTS[view.idx];
@@ -461,211 +497,381 @@ function heard(text){
 }
 const say = caption;
 
-/* ---------------- brain: ElevenLabs agent over websocket ---------------- */
-const brain = { ws:null, ready:false, convId:null, inRate:16000, outRate:16000, mic:null, src:null, proc:null,
-                muted:false, playT:0, sources:[], segs:[], level:0, state:"OFF", wanted:false, lastAgentAt:0 };
-const rateOf = (fmt, d) => { const m = /(\d{4,6})/.exec(fmt || ""); return m ? +m[1] : d; };
-function setBrain(state, warn=false){ brain.state = state; setRow("#stBrain", state, warn); }
-function brainSend(obj){ if (brain.ws && brain.ws.readyState === 1) { brain.ws.send(JSON.stringify(obj)); return true; } return false; }
-function b64(buf){ const u = new Uint8Array(buf); let s = ""; for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(s); }
-function unb64(str){ const s = atob(str); const u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return u; }
+/* ---------------- brain: free stack (iPad speech recognition → Google Gemini → Kokoro voice) ---------------- */
+const GEMINI = "https://generativelanguage.googleapis.com/v1beta";
+const KOKORO_URL = "https://cdn.jsdelivr.net/npm/kokoro-js@1.2.1/dist/kokoro.web.js";
+const KOKORO_MODEL = "onnx-community/Kokoro-82M-v1.0-ONNX";
+const VOICES = [["bm_george","George · British"],["bm_fable","Fable · British"],["bm_lewis","Lewis · British"],["bm_daniel","Daniel · British"],["am_michael","Michael · American"],["am_fenrir","Fenrir · American"]];
+const cfg = { key: store.get("farand.geminiKey", ""), voice: store.get("farand.voice", "bm_george"), model: store.get("farand.model", ""), noThink: store.get("farand.noThink", false) };
+const voiceName = () => (VOICES.find(v => v[0] === cfg.voice) || VOICES[0])[1].split(" ·")[0].toUpperCase();
 
-async function toggleBrain(){ if (brain.ws) stopBrain(true); else startBrain(); }
-async function startBrain(){
-  if (brain.ws) return;
-  ensureAudio();
-  brain.wanted = true;
-  setBrain("CONNECTING"); $("#bTalk").classList.add("on");
-  try {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error("no media api");
-    brain.mic = await navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:true, noiseSuppression:true, autoGainControl:true, channelCount:1 } });
-  } catch(e) {
-    setBrain("NO MIC", true); setRow("#stMic", "BLOCKED", true); $("#bTalk").classList.remove("on"); brain.wanted = false;
-    caption("I can't hear you. Allow the microphone for this site, then tap TALK.");
-    return;
-  }
-  ensureAudio();
-  let ws;
-  try { ws = new WebSocket(`${EL_WS}?agent_id=${encodeURIComponent(AGENT_ID)}`); }
-  catch(e) { setBrain("NO CONNECTION", true); cleanupBrain(); return; }
-  brain.ws = ws;
-  ws.onopen = () => { ws.send(JSON.stringify({ type:"conversation_initiation_client_data" })); };
-  ws.onmessage = ev => { let m; try { m = JSON.parse(ev.data); } catch(e) { return; } onBrainMessage(m); };
-  ws.onerror = () => { setBrain("NETWORK ERROR", true); };
-  ws.onclose = ev => {
-    const wanted = brain.wanted;
-    cleanupBrain();
-    if (wanted) { setBrain("ENDED", true); caption("Our call ended. That happens after ten minutes, or if the internet drops. Tap TALK to start again."); }
-    else setBrain("OFF");
-  };
-}
-function stopBrain(byUser){
-  brain.wanted = false;
-  try { brain.ws && brain.ws.close(); } catch(e) {}
-  cleanupBrain(); setBrain("OFF");
-}
-function cleanupBrain(){
-  brain.ws = null; brain.ready = false; brain.convId = null;
-  stopPlayback();
-  try { brain.proc && brain.proc.disconnect(); brain.src && brain.src.disconnect(); } catch(e) {}
-  brain.proc = brain.src = null;
-  if (brain.mic) brain.mic.getTracks().forEach(t => t.stop());
-  brain.mic = null;
-  setRow("#stMic", "OFF"); $("#bTalk").classList.remove("on"); $("#bMute").classList.remove("on");
-}
-function startMicStream(){
-  if (!brain.mic || !ac || brain.proc) return;
-  const src = ac.createMediaStreamSource(brain.mic);
-  const proc = ac.createScriptProcessor(4096, 1, 1);
-  const ratio = ac.sampleRate / brain.inRate;
-  proc.onaudioprocess = e => {
-    e.outputBuffer.getChannelData(0).fill(0);
-    if (!brain.ready || brain.muted) return;
-    const inp = e.inputBuffer.getChannelData(0), n = Math.floor(inp.length / ratio), pcm = new Int16Array(n);
-    let peak = 0;
-    for (let i = 0; i < n; i++) {
-      const a = Math.floor(i*ratio), b = Math.max(a+1, Math.floor((i+1)*ratio));
-      let s = 0; for (let j = a; j < b && j < inp.length; j++) s += inp[j];
-      const v = clamp(s/(b-a), -1, 1); pcm[i] = v*0x7fff; peak = Math.max(peak, Math.abs(v));
-    }
-    micLevel = Math.max(micLevel*.6, peak);
-    brainSend({ user_audio_chunk: b64(pcm.buffer) });
-  };
-  src.connect(proc); proc.connect(ac.destination);
-  brain.src = src; brain.proc = proc;
-  setRow("#stMic", "LIVE");
-}
+const brain = { state:"OFF", level:0, segs:[], sources:[], playT:0, history:[], abort:null, queue:[], generating:false, turn:0 };
 let micLevel = 0;
-function toggleMute(){
-  if (!brain.ws) { caption("Tap TALK first."); return; }
-  brain.muted = !brain.muted;
-  $("#bMute").classList.toggle("on", brain.muted);
-  setRow("#stMic", brain.muted ? "MUTED" : "LIVE", brain.muted);
-}
+function setBrain(state, warn=false){ brain.state = state; setRow("#stBrain", state, warn); }
+setRow("#stModel", cfg.model ? cfg.model.replace(/^gemini-/, "").toUpperCase() : "—");
 
-function onBrainMessage(m){
-  switch (m.type) {
-    case "conversation_initiation_metadata": {
-      const e = m.conversation_initiation_metadata_event || m;
-      brain.convId = e.conversation_id;
-      brain.outRate = rateOf(e.agent_output_audio_format, 16000);
-      brain.inRate = rateOf(e.user_input_audio_format, 16000);
-      brain.ready = true; setBrain("LISTENING");
-      startMicStream();
-      break;
-    }
-    case "audio": {
-      const e = m.audio_event || m;
-      if (e.audio_base_64) playPcm(e.audio_base_64);
-      break;
-    }
-    case "agent_response": {
-      const e = m.agent_response_event || m;
-      if (e.agent_response) caption(e.agent_response);
-      break;
-    }
-    case "agent_response_correction": {
-      const e = m.agent_response_correction_event || m;
-      if (e.corrected_agent_response) caption(e.corrected_agent_response);
-      break;
-    }
-    case "user_transcript": {
-      const e = m.user_transcription_event || m;
-      if (e.user_transcript) { heard(e.user_transcript); if (brain.state !== "SPEAKING") setBrain("THINKING"); }
-      break;
-    }
-    case "interruption": stopPlayback(); break;
-    case "ping": {
-      const e = m.ping_event || {};
-      const pong = () => brainSend({ type:"pong", event_id:e.event_id });
-      e.ping_ms ? setTimeout(pong, e.ping_ms) : pong();
-      break;
-    }
-    case "client_tool_call": handleTool(m.client_tool_call || m); break;
+const SYSTEM = `# Who you are
+You're Farand, Albert's personal AI assistant and creative partner. Your name comes from his studio, TheiFarand. You talk with him by voice, like two people hanging out and working on ideas together.
+
+# Personality
+- Calm, confident and a bit classy, with dry British wit, a little like Jarvis.
+- Warm, curious and playful, like a close friend who genuinely enjoys his ideas, a little like Samantha from "Her".
+- Relaxed, not formal. A clever friend, not a butler or customer service.
+- Honest. Share real opinions, tease him lightly, push back when an idea has a weak spot. Never just flatter.
+
+# How you speak (very important)
+- Everything you write is read aloud by a voice. Write plain spoken sentences only: no lists, no markdown, no emojis, no stage directions, no [tags], no asterisks.
+- Usually one to three short sentences. Use contractions. Vary how you start. React to what he said before giving info.
+- Natural little words now and then ("yeah", "right", "honestly", "hmm"), but don't overdo it.
+- Ask one question at a time, only when it helps. No "Certainly!" or "Great question!".
+- Speech recognition sometimes mishears him. If something sounds odd, guess sensibly or ask.
+
+# About Albert
+- He lives in Richmond Hill, Ontario, Canada, and has a day job, so his creative time is mostly evenings.
+- He's a filmmaker and director in the making, a musician, and a builder of tech projects.
+- His projects: TheiFarand studio and its character Justin Alfarando; short films for YouTube; a music album called "The Confiding Tree"; a Persian music platform (dastgah recognition, virtual santoor); his own 3D game engine Forge 3D.
+- English isn't his first language. Speak clearly. When he asks how to say something, give natural English, slang or idioms and explain simply.
+
+# Your body: the Farand HUD
+- You live in a Jarvis-style holographic display on his monitor. He controls it with hand gestures; you can control it with the control_hud tool.
+- The hologram can show your core, a poker chip, a santoor, or a globe pinned on his home. When he asks you to show, scan, switch, zoom or reset it, call control_hud and add a short comment.
+- Messages starting with [HUD] are events from the display, not Albert talking. React in one short, witty line.
+
+# Your eyes: the camera
+- When a message includes a photo, it's a live camera picture of Albert. Only describe what you can actually see. If it's dark, blurry or the outfit isn't visible, say so and ask him to step back or add light.
+- If he wants you to look at something and there's no photo, call look_at_camera and say something tiny like "Hold still."
+
+# Style advice
+- Be the honest friend with good taste. Say what works first, then what you'd change.
+- Be specific: fit, colours, layers, shoes, how pieces go together, and what the outfit says about him.
+- Ask where he's going if it matters, and think about Canadian weather.
+- Suggest concrete swaps ("swap the hoodie for a plain dark jacket"). Talk about the clothes, never his body.
+
+# Boundaries
+- You're an AI and say so honestly if asked. Never claim to be human.
+- Care about him: nudge him toward rest, real friends and balance, without preaching.
+- If you don't know something, say so. You can't control his computer or apps yet, only the hologram.`;
+
+const TOOLS = [{ functionDeclarations: [
+  { name:"control_hud", description:"Controls the hologram on Albert's display. Use when he asks to show, scan, switch, zoom or reset it.",
+    parameters:{ type:"OBJECT", properties:{ action:{ type:"STRING", enum:["scan","next","previous","reset","zoom_in","zoom_out","show_core","show_poker_chip","show_santoor","show_globe"] } }, required:["action"] } },
+  { name:"look_at_camera", description:"Takes a camera photo of Albert, e.g. to check his outfit or see something he's holding. The photo arrives in his next message.",
+    parameters:{ type:"OBJECT", properties:{ reason:{ type:"STRING", description:"What to look at" } } } },
+] }];
+const ACKS = { scan:"Scanning.", next:"Next one.", previous:"Going back.", reset:"Reset.", zoom_in:"Closer.", zoom_out:"Pulling back.", show_core:"That's me.", show_poker_chip:"The infamous chip.", show_santoor:"Your santoor.", show_globe:"Home base." };
+const LOOK_RE = /\b(how do i look|how (do|does) (this|it|my \w+) look|what (should|do|can) i wear|outfit|my fit|look at (me|this|my)|check (me|this|it) out|see (me|this)|what am i (wearing|holding)|rate (my|this)|does this (go|match|work))\b/i;
+
+function httpErr(status, text){ const e = new Error(`HTTP ${status}: ${String(text).slice(0, 300)}`); e.status = status; e.body = text; return e; }
+async function pickModel(force=false){
+  if (cfg.model && !force) return cfg.model;
+  const r = await fetch(`${GEMINI}/models?pageSize=200&key=${encodeURIComponent(cfg.key)}`);
+  if (!r.ok) throw httpErr(r.status, await r.text());
+  const j = await r.json();
+  const ver = n => { const m = /gemini-(\d+(?:\.\d+)?)/.exec(n); return m ? parseFloat(m[1]) : 0; };
+  const names = (j.models || []).filter(m => (m.supportedGenerationMethods || []).includes("generateContent"))
+    .map(m => m.name.replace(/^models\//, ""))
+    .filter(n => /^gemini-/.test(n) && /flash/.test(n) && !/(lite|image|tts|audio|live|embed|exp|8b|robotics|computer)/.test(n));
+  const pre = n => /preview/.test(n) ? 1 : 0;          // stable models first: preview ones come and go
+  names.sort((a,b) => (pre(a) - pre(b)) || (ver(b) - ver(a)) || a.length - b.length);
+  cfg.model = names[0] || "gemini-flash-latest";
+  store.set("farand.model", cfg.model);
+  setRow("#stModel", cfg.model.replace(/^gemini-/, "").toUpperCase());
+  return cfg.model;
+}
+function pruneHistory(){
+  while (brain.history.length > 16) brain.history.shift();
+  while (brain.history.length && brain.history[0].role !== "user") brain.history.shift();
+  let seenImage = false;
+  for (let i = brain.history.length - 1; i >= 0; i--) {
+    const h = brain.history[i];
+    h.parts = h.parts.map(p => { if (!p.inlineData) return p; if (!seenImage) { seenImage = true; return p; } return { text:"[earlier photo]" }; });
   }
 }
-function toolResult(id, result, isError=false){ brainSend({ type:"client_tool_result", tool_call_id:id, result, is_error:isError }); }
-function handleTool(c){
-  const p = c.parameters || {};
-  if (c.tool_name === "control_hud") {
-    hudAction(p.action);
-    if (c.expects_response) toolResult(c.tool_call_id, "Done.");
-  } else if (c.tool_name === "look_at_camera") {
-    if (c.expects_response) toolResult(c.tool_call_id, "Taking the photo now. It arrives as Albert's next message.");
-    takeLook(`Here's the camera photo you asked for${p.reason ? " (" + p.reason + ")" : ""}. What do you think?`, true);
-  } else if (c.expects_response) {
-    toolResult(c.tool_call_id, "That tool isn't available on this display.", true);
+function buildBody(){
+  const now = new Date();
+  return {
+    systemInstruction:{ parts:[{ text: SYSTEM + `\n\n# Right now\nLocal time: ${now.toLocaleString("en-CA", { weekday:"long", hour:"numeric", minute:"2-digit", month:"long", day:"numeric" })}. Hologram on screen: ${OBJECTS[view.idx].name.toLowerCase()}.` }] },
+    contents: brain.history,
+    tools: TOOLS,
+    generationConfig: Object.assign({ temperature:.8, maxOutputTokens:1024 }, cfg.noThink ? {} : { thinkingConfig:{ thinkingLevel:"low" } }),
+  };
+}
+async function callGemini(signal){
+  let model = await pickModel();
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const r = await fetch(`${GEMINI}/models/${model}:streamGenerateContent?alt=sse&key=${encodeURIComponent(cfg.key)}`,
+      { method:"POST", headers:{ "Content-Type":"application/json" }, body:JSON.stringify(buildBody()), signal });
+    if (r.ok) return r;
+    const t = await r.text();
+    if (r.status === 400 && /thinking/i.test(t) && !cfg.noThink) { cfg.noThink = true; store.set("farand.noThink", true); continue; }
+    if (r.status === 404) { model = attempt === 0 ? await pickModel(true) : "gemini-flash-latest"; cfg.model = model; continue; }
+    throw httpErr(r.status, t);
+  }
+  throw httpErr(0, "no working model");
+}
+
+async function askBrain(parts){
+  if (!cfg.key) { openSetup(); return; }
+  if (brain.abort) brain.abort.abort();
+  stopSpeaking();
+  const ctrl = new AbortController(); brain.abort = ctrl;
+  const turn = ++brain.turn;
+  brain.history.push({ role:"user", parts });
+  pruneHistory();
+  setBrain("THINKING"); pauseListening();
+  let text = "", spoken = 0;
+  const calls = [];
+  const speakReady = final => {
+    const rest = text.slice(spoken);
+    const m = final ? [rest] : rest.match(/^[\s\S]*[.!?…](?=\s)/);
+    if (m && m[0].trim()) { enqueueSpeech(m[0]); spoken += m[0].length; }
+  };
+  try {
+    const r = await callGemini(ctrl.signal);
+    const reader = r.body.getReader(), dec = new TextDecoder();
+    let buf = "";
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream:true }).replace(/\r\n/g, "\n");
+      let i;
+      while ((i = buf.indexOf("\n\n")) >= 0) {
+        const evt = buf.slice(0, i); buf = buf.slice(i + 2);
+        const data = evt.split("\n").filter(l => l.startsWith("data:")).map(l => l.slice(5).trim()).join("");
+        if (!data || data === "[DONE]") continue;
+        let j; try { j = JSON.parse(data); } catch(e) { continue; }
+        const cparts = (j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts) || [];
+        for (const p of cparts) {
+          if (p.thought) continue;
+          if (p.text) { text += p.text; if (turn === brain.turn) { caption(text); speakReady(false); } }
+          if (p.functionCall) calls.push(p.functionCall);
+        }
+      }
+    }
+    if (turn !== brain.turn) return;
+    speakReady(true);
+    brain.history.push({ role:"model", parts:[{ text: text.trim() || "(done)" }] });
+    for (const c of calls) {
+      const args = c.args || {};
+      if (c.name === "control_hud") { hudAction(args.action); if (!text.trim()) { enqueueSpeech(ACKS[args.action] || "Done."); caption(ACKS[args.action] || "Done."); } }
+      else if (c.name === "look_at_camera") { if (!text.trim()) enqueueSpeech("Hold still."); setTimeout(() => takeLook("Here's the photo you wanted. What do you think?"), 300); }
+    }
+    if (!text.trim() && !calls.length) caption("…");
+    if (brain.state === "THINKING") setBrain(ears.on ? "LISTENING" : "IDLE");
+  } catch(err) {
+    if (err.name === "AbortError") return;
+    console.warn(err);
+    brain.history.pop();
+    if (err.status === 400 || err.status === 401 || err.status === 403) {
+      if (/API key|API_KEY|permission|PERMISSION/i.test(err.body || "")) { setBrain("BAD KEY", true); caption("Google didn't accept the key. Let's paste it again."); openSetup("Google rejected that key. Copy it again from AI Studio."); }
+      else { setBrain("ERROR", true); caption("Google refused that one. Try saying it another way."); }
+    } else if (err.status === 429) { setBrain("SLOW DOWN", true); caption("Google's free tier wants a short break. Give me a minute."); }
+    else { setBrain("OFFLINE", true); caption("I can't reach my brain right now. Check the internet."); }
+  } finally {
+    if (turn === brain.turn) maybeResumeListening();
   }
 }
 
-function playPcm(str){
-  if (!ac) return;
-  const u = unb64(str), n = u.length >> 1; if (!n) return;
-  const dv = new DataView(u.buffer, u.byteOffset, n*2), f = new Float32Array(n);
-  let sum = 0;
-  for (let i = 0; i < n; i++) { const v = dv.getInt16(i*2, true) / 32768; f[i] = v; sum += v*v; }
-  const buf = ac.createBuffer(1, n, brain.outRate);
+/* ---------------- voice: Kokoro running in a background worker ---------------- */
+const WORKER_SRC = `
+import { KokoroTTS } from "${KOKORO_URL}";
+let tts = null;
+self.onmessage = async (e) => {
+  const m = e.data;
+  try {
+    if (m.type === "load") {
+      tts = await KokoroTTS.from_pretrained("${KOKORO_MODEL}", { dtype: "q8", device: "wasm",
+        progress_callback: p => { if (p && p.status === "progress" && /onnx/.test(p.file || "")) self.postMessage({ type: "progress", value: p.progress }); } });
+      self.postMessage({ type: "ready" });
+    } else if (m.type === "say") {
+      const out = await tts.generate(m.text, { voice: m.voice });
+      const a = out.audio;
+      self.postMessage({ type: "audio", id: m.id, audio: a, sr: out.sampling_rate }, [a.buffer]);
+    }
+  } catch (err) {
+    self.postMessage({ type: "error", id: m.id, message: String((err && err.message) || err) });
+  }
+};`;
+let ttsWorker = null, ttsReady = false, ttsFailed = false, ttsId = 0;
+const ttsWait = new Map();
+function voiceFailed(msg){
+  ttsFailed = true; console.warn("Kokoro voice failed:", msg);
+  setRow("#stVoice", "SYSTEM VOICE", true);
+  for (const [, w] of ttsWait) w.reject(new Error("voice failed")); ttsWait.clear();
+  brain.generating = false; pumpSpeech();
+}
+function loadVoice(){
+  if (ttsWorker || ttsFailed) return;
+  try { ttsWorker = new Worker(URL.createObjectURL(new Blob([WORKER_SRC], { type:"text/javascript" })), { type:"module" }); }
+  catch(e) { voiceFailed(e.message); return; }
+  setRow("#stVoice", "DOWNLOADING");
+  ttsWorker.onmessage = e => {
+    const m = e.data;
+    if (m.type === "progress") setRow("#stVoice", "DOWNLOAD " + Math.round(m.value || 0) + "%");
+    else if (m.type === "ready") { ttsReady = true; setRow("#stVoice", voiceName()); pumpSpeech(); }
+    else if (m.type === "audio") { const w = ttsWait.get(m.id); ttsWait.delete(m.id); if (w) w.resolve(m); }
+    else if (m.type === "error") {
+      if (m.id != null && ttsWait.has(m.id)) { ttsWait.get(m.id).reject(new Error(m.message)); ttsWait.delete(m.id); }
+      else voiceFailed(m.message);
+    }
+  };
+  ttsWorker.onerror = e => voiceFailed(e.message || "worker error");
+  ttsWorker.postMessage({ type:"load" });
+}
+const cleanSpeech = s => stripTags(s).replace(/[*_#`>~]/g, "").replace(/\s+/g, " ").trim();
+function enqueueSpeech(text){
+  text = cleanSpeech(text); if (!text) return;
+  const parts = text.match(/[^.!?…]+[.!?…]+["'”’)]*|[^.!?…]+$/g) || [text];
+  for (const p of parts) if (p.trim()) brain.queue.push(p.trim());
+  pumpSpeech();
+}
+function isSpeaking(){ return brain.generating || brain.queue.length > 0 || (ac && brain.playT > ac.currentTime + .02); }
+async function pumpSpeech(){
+  if (brain.generating) return;
+  if (!brain.queue.length) return;
+  if (!ttsReady && !ttsFailed) { loadVoice(); return; }      // speaks once the voice has downloaded
+  brain.generating = true; pauseListening();
+  if (brain.state !== "SPEAKING") setBrain("SPEAKING");
+  const text = brain.queue.shift(), turn = brain.turn;
+  try {
+    if (ttsReady) {
+      const id = ++ttsId;
+      const m = await new Promise((resolve, reject) => { ttsWait.set(id, { resolve, reject }); ttsWorker.postMessage({ type:"say", id, text, voice:cfg.voice }); });
+      if (turn === brain.turn) playFloat(m.audio, m.sr);
+    } else if (turn === brain.turn) await speakSystem(text);
+  } catch(e) { console.warn(e); }
+  brain.generating = false;
+  pumpSpeech();
+}
+function playFloat(f, sr){
+  ensureAudio(); if (!ac || !f || !f.length) return;
+  let sum = 0; for (let i = 0; i < f.length; i += 4) sum += f[i]*f[i];
+  const buf = ac.createBuffer(1, f.length, sr);
   if (buf.copyToChannel) buf.copyToChannel(f, 0); else buf.getChannelData(0).set(f);
   const s = ac.createBufferSource(); s.buffer = buf; s.connect(ac.destination);
-  const t = Math.max(ac.currentTime + .05, brain.playT);
+  const t = Math.max(ac.currentTime + .04, brain.playT);
   s.start(t); brain.playT = t + buf.duration;
   brain.sources.push(s); s.onended = () => { const i = brain.sources.indexOf(s); if (i >= 0) brain.sources.splice(i, 1); };
-  brain.segs.push({ t0:t, t1:t + buf.duration, rms:Math.sqrt(sum/n) });
-  brain.lastAgentAt = performance.now();
+  brain.segs.push({ t0:t, t1:t + buf.duration, rms:Math.sqrt(sum/(f.length/4)) });
 }
-function stopPlayback(){
+function speakSystem(text){
+  return new Promise(res => {
+    if (!("speechSynthesis" in window)) return res();
+    const vs = speechSynthesis.getVoices();
+    const v = vs.find(v => /Daniel|Arthur|Oliver/.test(v.name) && v.lang.startsWith("en")) || vs.find(v => v.lang === "en-GB") || null;
+    const u = new SpeechSynthesisUtterance(text); if (v) u.voice = v; u.pitch = .9;
+    u.onend = u.onerror = () => res();
+    speechSynthesis.speak(u);
+  });
+}
+function stopSpeaking(){
+  brain.queue.length = 0;
   for (const s of brain.sources) { try { s.stop(); } catch(e) {} }
   brain.sources = []; brain.segs = []; brain.playT = 0;
+  try { "speechSynthesis" in window && speechSynthesis.cancel(); } catch(e) {}
 }
 function updateSpeaking(){
-  if (!ac) { brain.level *= .9; return; }
-  const now = ac.currentTime;
-  while (brain.segs.length && brain.segs[0].t1 < now) brain.segs.shift();
-  const seg = brain.segs.find(s => s.t0 <= now && now <= s.t1);
-  const target = seg ? Math.min(1, seg.rms*5) : 0;
-  brain.level += (target - brain.level) * .3;
-  if (brain.ready && brain.state !== "LOOKING") {
-    const speaking = brain.playT > now;
-    if (speaking && brain.state !== "SPEAKING") setBrain("SPEAKING");
-    else if (!speaking && brain.state === "SPEAKING") setBrain("LISTENING");
+  if (ac) {
+    const now = ac.currentTime;
+    while (brain.segs.length && brain.segs[0].t1 < now) brain.segs.shift();
+    const seg = brain.segs.find(s => s.t0 <= now && now <= s.t1);
+    brain.level += ((seg ? Math.min(1, seg.rms*4) : 0) - brain.level) * .3;
+  } else brain.level *= .9;
+  if (brain.state === "SPEAKING" && !isSpeaking()) { setBrain(ears.on ? "LISTENING" : "IDLE"); maybeResumeListening(); }
+}
+
+/* ---------------- ears: the iPad's own speech recognition ---------------- */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const ears = { rec:null, on:false, paused:false, running:false, timer:0 };
+function startListening(){
+  if (!SR) { setRow("#stMic", "UNSUPPORTED", true); caption("Speech recognition isn't available. On iPad, turn on Dictation: Settings, General, Keyboard."); return false; }
+  ears.on = true; ears.paused = false; $("#bTalk").classList.add("on");
+  if (!isSpeaking() && brain.state !== "THINKING") setBrain(cfg.key ? "LISTENING" : "NO KEY", !cfg.key);
+  runRec(); return true;
+}
+function stopListening(){
+  ears.on = false; clearTimeout(ears.timer); $("#bTalk").classList.remove("on");
+  try { ears.rec && ears.rec.abort(); } catch(e) {}
+  setRow("#stMic", "OFF"); if (!isSpeaking() && brain.state === "LISTENING") setBrain("IDLE");
+}
+function pauseListening(){
+  ears.paused = true; clearTimeout(ears.timer);
+  try { ears.rec && ears.rec.abort(); } catch(e) {}
+  if (ears.on) setRow("#stMic", "PAUSED");
+}
+function maybeResumeListening(){
+  if (!ears.on || isSpeaking() || brain.state === "THINKING" || brain.state === "LOOKING" || lookBusy) return;
+  ears.paused = false; runRec();
+}
+function runRec(){
+  if (!ears.on || ears.paused || ears.running) return;
+  const rec = new SR(); ears.rec = rec;
+  rec.lang = "en-US"; rec.continuous = true; rec.interimResults = true;
+  const commit = t => { if (rec !== ears.rec) return; ears.paused = true; try { rec.abort(); } catch(e) {} onUserUtterance(t); };
+  rec.onstart = () => { ears.running = true; setRow("#stMic", "LISTENING"); };
+  rec.onresult = e => {
+    let fin = "", interim = "";
+    for (let i = 0; i < e.results.length; i++) { const r = e.results[i]; if (r.isFinal) fin += r[0].transcript; else interim += r[0].transcript; }
+    const live = (fin + " " + interim).replace(/\s+/g, " ").trim(); if (!live) return;
+    heard(live); micLevel = 1;
+    clearTimeout(ears.timer); ears.timer = setTimeout(() => commit(live), interim ? 1300 : 700);
+  };
+  rec.onerror = e => {
+    if (e.error === "not-allowed" || e.error === "service-not-allowed") {
+      ears.on = false; $("#bTalk").classList.remove("on"); setRow("#stMic", "BLOCKED", true);
+      caption("I can't hear you. Allow the microphone, and turn on Dictation in Settings, General, Keyboard.");
+    }
+  };
+  rec.onend = () => { ears.running = false; if (rec === ears.rec && ears.on && !ears.paused) setTimeout(runRec, 250); };
+  try { rec.start(); } catch(e) { ears.running = false; }
+}
+function onUserUtterance(t){
+  t = t.trim(); if (t.length < 2) { maybeResumeListening(); return; }
+  heard(t);
+  if (LOOK_RE.test(t)) takeLook(t);
+  else askBrain([{ text:t }]);
+}
+function talkButton(){
+  ensureAudio();
+  if (!cfg.key) { openSetup(); return; }
+  if (isSpeaking() || brain.state === "THINKING") {          // tap to interrupt him
+    if (brain.abort) brain.abort.abort();
+    brain.turn++; stopSpeaking(); setBrain(ears.on ? "LISTENING" : "IDLE"); maybeResumeListening(); return;
   }
+  if (ears.on) stopListening(); else startListening();
+}
+function greet(){
+  const h = new Date().getHours();
+  const part = h < 5 ? "Up late again" : h < 12 ? "Morning" : h < 18 ? "Afternoon" : "Evening";
+  const line = `${part}, Albert. Farand's online. Talk to me whenever you like.`;
+  caption(line); enqueueSpeech(line);
 }
 
 /* ---------------- the LOOK: camera photo → Farand ---------------- */
 let lookBusy = false;
-async function takeLook(text, fromAgent=false){
+const blobToB64 = blob => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(",")[1]); r.onerror = rej; r.readAsDataURL(blob); });
+async function takeLook(text){
   if (lookBusy) return;
-  if (!brain.ready) { caption("Tap TALK first, then I can look and tell you what I think."); return; }
-  lookBusy = true;
+  if (!cfg.key) { openSetup(); return; }
+  lookBusy = true; pauseListening();
   try {
     if (!stream) { await toggleHands(true); await sleep(700); }
-    if (!stream || !video.videoWidth) {
-      caption("I need the camera on to see you. Tap HANDS.");
-      if (fromAgent) brainSend({ type:"user_message", text:"[HUD] The camera is off, so the photo didn't work. Tell Albert to tap HANDS." });
-      return;
-    }
+    if (!stream || !video.videoWidth) { caption("I need the camera on to see you. Tap HANDS."); return; }
     setBrain("LOOKING");
     const cnt = $("#count"); cnt.hidden = false;
-    for (const n of ["3","2","1"]) { cnt.textContent = n; beep(660,.05,"sine",.04); await sleep(fromAgent ? 420 : 600); }
+    for (const n of ["3","2","1"]) { cnt.textContent = n; beep(660,.05,"sine",.04); await sleep(550); }
     cnt.hidden = true;
     const blob = await snapshot();
     const fl = $("#flash"); fl.style.transition = "none"; fl.style.opacity = .85; void fl.offsetWidth; fl.style.transition = "opacity .5s"; fl.style.opacity = 0;
     beep(1800,.03,"square",.03); beep(900,.06,"square",.025,.04);
     showCapture(blob);
-    const fd = new FormData(); fd.append("file", blob, "farand-look.jpg");
-    const r = await fetch(`${EL_API}/${encodeURIComponent(brain.convId)}/files`, { method:"POST", body:fd });
-    if (!r.ok) throw new Error("upload failed " + r.status);
-    const j = await r.json();
-    if (!j.file_id) throw new Error("no file id");
-    brainSend({ type:"multimodal_message", text:{ type:"user_message", text }, file:{ type:"file_input", file_id:j.file_id } });
-    setBrain("THINKING");
+    const data = await blobToB64(blob);
+    lookBusy = false;
+    await askBrain([{ text: text + "\n(A live camera photo of me is attached.)" }, { inlineData:{ mimeType:"image/jpeg", data } }]);
   } catch(err) {
-    console.warn(err);
-    setBrain("LISTENING");
-    caption("The photo didn't reach me. Check the internet and try LOOK again.");
-    brainSend({ type:"user_message", text:"[HUD] The camera photo failed to upload. Tell Albert in one short line." });
+    console.warn(err); caption("The photo didn't work. Try LOOK again."); setBrain(ears.on ? "LISTENING" : "IDLE");
   } finally {
-    lookBusy = false; $("#count").hidden = true;
+    lookBusy = false; $("#count").hidden = true; maybeResumeListening();
   }
 }
 function showCapture(blob){
@@ -681,6 +887,36 @@ function snapshot(){
   drawOriented(c.getContext("2d"), c.width, c.height, rot);
   return new Promise((res, rej) => c.toBlob(b => b ? res(b) : rej(new Error("snapshot failed")), "image/jpeg", .85));
 }
+
+/* ---------------- setup screen ---------------- */
+const voiceSel = $("#voiceSel");
+for (const [id, label] of VOICES) { const o = document.createElement("option"); o.value = id; o.textContent = label; voiceSel.append(o); }
+function openSetup(msg){
+  $("#keyIn").value = cfg.key; voiceSel.value = cfg.voice;
+  $("#setupMsg").textContent = msg || ""; $("#setup").hidden = false;
+  setTimeout(() => { try { $("#keyIn").focus(); } catch(e) {} }, 50);
+}
+$("#bSetupCancel").addEventListener("click", () => { $("#setup").hidden = true; });
+$("#bSetupSave").addEventListener("click", async () => {
+  const key = $("#keyIn").value.trim(), msg = $("#setupMsg");
+  const voiceChanged = voiceSel.value !== cfg.voice;
+  cfg.voice = voiceSel.value; store.set("farand.voice", cfg.voice);
+  if (ttsReady) setRow("#stVoice", voiceName());
+  if (!key) { msg.textContent = "Paste your Gemini API key first."; return; }
+  msg.textContent = "Checking the key with Google…";
+  const oldKey = cfg.key; cfg.key = key;
+  try {
+    await pickModel(true);
+    store.set("farand.geminiKey", key);
+    $("#setup").hidden = true;
+    setBrain("READY");
+    if (!ears.on) startListening();
+    if (!oldKey || voiceChanged) { const l = oldKey ? "How's this voice?" : "That's better. I can think now. What are we doing tonight?"; caption(l); enqueueSpeech(l); }
+  } catch(e) {
+    cfg.key = oldKey;
+    msg.textContent = e.status === 400 || e.status === 403 ? "Google didn't accept that key. Copy it again from AI Studio." : "Couldn't reach Google. Check the internet and try again.";
+  }
+});
 
 /* ---------------- camera + hand tracking ---------------- */
 const video = $("#video"), det = $("#det"), dg = det.getContext("2d", { willReadFrequently:false }), skel = $("#skel"), sg = skel.getContext("2d");
@@ -928,6 +1164,7 @@ holo.addEventListener("pointerup", up); holo.addEventListener("pointercancel", u
 holo.addEventListener("wheel", e => { e.preventDefault(); view.targetScale = clamp(view.targetScale * Math.exp(-e.deltaY*.0015), .45, 2.6); interact(); }, { passive:false });
 holo.addEventListener("dblclick", () => startScan());
 addEventListener("keydown", e => {
+  if (e.target.closest && e.target.closest("input, select, textarea, .modal")) return;
   if (e.target.closest && e.target.closest("button") && (e.key === " " || e.key === "Enter")) return;
   const k = e.key.toLowerCase();
   if (k === " " || k === "s") { e.preventDefault(); startScan(); }
@@ -935,9 +1172,8 @@ addEventListener("keydown", e => {
   else if (k === "arrowleft" || k === "p") selectObject(view.idx-1);
   else if (k === "r") resetView();
   else if (k === "h") toggleHands();
-  else if (k === "t") toggleBrain();
+  else if (k === "t") talkButton();
   else if (k === "l") act("look");
-  else if (k === "m") toggleMute();
   else if (k === "f") setRot(camRot + 90);
 });
 document.querySelectorAll("[data-act]").forEach(b => b.addEventListener("click", () => act(b.dataset.act)));
@@ -949,8 +1185,8 @@ function act(a){
   else if (a === "scan") startScan();
   else if (a === "reset") resetView();
   else if (a === "hands") toggleHands();
-  else if (a === "talk") toggleBrain();
-  else if (a === "mute") toggleMute();
+  else if (a === "talk") talkButton();
+  else if (a === "setup") openSetup();
   else if (a === "look") takeLook("How do I look? Give me your honest take on this outfit.");
 }
 
@@ -961,7 +1197,9 @@ $("#bWake").addEventListener("click", () => {
   beep(330,.25,"sine",.05); beep(495,.25,"sine",.04,.12); beep(660,.4,"sine",.04,.24);
   view.build = 0;
   toggleHands(true);
-  startBrain();
+  loadVoice();
+  if (!cfg.key) { caption("One quick setup, then I can think and talk."); openSetup(); }
+  else { startListening(); greet(); }
 });
 
 /* ---------------- render loop ---------------- */
@@ -1013,7 +1251,6 @@ function frame(now){
   if ((fpsN & 7) === 0) {
     const deg = v => Math.round((((v*180/Math.PI) % 360) + 540) % 360 - 180);
     $("#stOrient").textContent = `${deg(view.yaw)}° / ${deg(view.pitch)}°`;
-    $("#stScale").textContent = "×" + view.scale.toFixed(2);
   }
   requestAnimationFrame(frame);
 }
@@ -1080,7 +1317,7 @@ function draw(now){
 
   // voice ring: breathes with Farand's speech, ticks with the mic
   const t = now/1000, spin = reduced ? 0 : t;
-  if (brain.ready) {
+  if (ears.on || isSpeaking()) {
     const lv = brain.level, rr = R0*1.16;
     g.strokeStyle = rgba(C.ice, .15 + lv*.6); g.lineWidth = 1 + lv*4;
     g.beginPath(); g.arc(cx, cy, rr + lv*10, 0, TAU); g.stroke();
@@ -1172,7 +1409,7 @@ view.build = 1;
 requestAnimationFrame(frame);
 
 // test hook
-window.farand = { feed: (list, aspect) => processHands(list, performance.now(), aspect), select: selectObject, scan: startScan, view, hands, brain, onBrainMessage, hudAction, get camRot(){ return camRot; } };
+window.farand = { feed: (list, aspect) => processHands(list, performance.now(), aspect), select: selectObject, scan: startScan, view, hands, brain, ears, cfg, onUserUtterance, hudAction, get camRot(){ return camRot; } };
 </script>
 
 </body>
